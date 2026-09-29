@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}
+Capaian Pembelajaran
+{% endblock %}
+
+{% block content %}
+
+<div class="page">
+
+    <div class="page-header">
+
+        <div class="page-header-content">
+
+            <span class="page-eyebrow">
+                MASTER DATA
+            </span>
+
+            <h1 class="page-title">
+                Capaian Pembelajaran
+            </h1>
+
+            <p class="page-description">
+                Kelola capaian pembelajaran berdasarkan mata pelajaran.
+            </p>
+
+        </div>
+
+        <div class="page-header-actions">
+
+            <a
+                href="/learning-outcomes/create"
+                class="button button-primary"
+            >
+                + Tambah Capaian Pembelajaran
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <div class="card-header">
+
+            <div class="card-header-content">
+
+                <h2 class="card-title">
+                    Daftar Capaian Pembelajaran
+                </h2>
+
+                <p class="card-description">
+                    Data capaian pembelajaran yang tersedia dalam sistem.
+                </p>
+
+            </div>
+
+            {% if learning_outcomes %}
+
+            <div class="card-count">
+                {{ learning_outcomes|length }} capaian
+            </div>
+
+            {% endif %}
+
+        </div>
+
+        {% if learning_outcomes %}
+
+        <div class="table-wrapper">
+
+            <table class="data-table">
+
+                <thead>
+
+                    <tr>
+                        <th>No</th>
+                        <th>Mata Pelajaran</th>
+                        <th>Kode</th>
+                        <th>Deskripsi</th>
+                        <th>Status</th>
+                        <th class="table-action-column">Aksi</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for learning_outcome in learning_outcomes %}
+
+                    <tr>
+
+                        <td>
+                            <span class="table-muted">
+                                {{ loop.index }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="table-primary">
+                                {{ learning_outcome.subject.name }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="table-primary">
+                                {{ learning_outcome.code }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="table-secondary">
+                                {{ learning_outcome.description }}
+                            </span>
+                        </td>
+
+                        <td>
+
+                            {% if learning_outcome.is_active %}
+
+                            <span class="status-badge status-active">
+                                <span class="status-dot"></span>
+                                <span>Aktif</span>
+                            </span>
+
+                            {% else %}
+
+                            <span class="status-badge status-inactive">
+                                <span class="status-dot"></span>
+                                <span>Tidak Aktif</span>
+                            </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            <div class="table-actions">
+
+                                <a
+                                    href="/learning-outcomes/{{ learning_outcome.id }}/edit"
+                                    class="table-action table-action-edit"
+                                >
+                                    Edit
+                                </a>
+
+                                <form
+                                    method="post"
+                                    action="/learning-outcomes/{{ learning_outcome.id }}/toggle-active"
+                                    class="loading-form inline-form"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="{{ csrf_token }}"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="table-action table-action-status loading-button"
+                                    >
+                                        <span class="button-spinner"></span>
+
+                                        <span class="button-text">
+                                            {% if learning_outcome.is_active %}
+                                            Nonaktifkan
+                                            {% else %}
+                                            Aktifkan
+                                            {% endif %}
+                                        </span>
+                                    </button>
+
+                                </form>
+
+                                <form
+                                    method="post"
+                                    action="/learning-outcomes/{{ learning_outcome.id }}/delete"
+                                    class="loading-form delete-form inline-form"
+                                    data-confirm-message="Apakah kamu yakin ingin menghapus capaian pembelajaran ini?"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="{{ csrf_token }}"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="table-action table-action-delete loading-button"
+                                    >
+                                        <span class="button-spinner"></span>
+
+                                        <span class="button-text">
+                                            Hapus
+                                        </span>
+                                    </button>
+
+                                </form>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        {% else %}
+
+        <div class="empty-state">
+
+            <div class="empty-state-icon">
+                C
+            </div>
+
+            <h3 class="empty-state-title">
+                Belum ada capaian pembelajaran
+            </h3>
+
+            <p class="empty-state-description">
+                Silakan tambahkan capaian pembelajaran terlebih dahulu.
+            </p>
+
+            <a
+                href="/learning-outcomes/create"
+                class="button button-primary"
+            >
+                Tambah Capaian Pembelajaran
+            </a>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}

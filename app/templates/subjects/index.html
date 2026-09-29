@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}
+Mata Pelajaran
+{% endblock %}
+
+{% block content %}
+
+<div class="page">
+
+    <div class="page-header">
+
+        <div class="page-header-content">
+
+            <span class="page-eyebrow">
+                MASTER DATA
+            </span>
+
+            <h1 class="page-title">
+                Mata Pelajaran
+            </h1>
+
+            <p class="page-description">
+                Kelola data mata pelajaran yang digunakan dalam evaluasi.
+            </p>
+
+        </div>
+
+        <div class="page-header-actions">
+
+            <a
+                href="/subjects/create"
+                class="button button-primary"
+            >
+                + Tambah Mata Pelajaran
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <div class="card-header">
+
+            <div class="card-header-content">
+
+                <h2 class="card-title">
+                    Daftar Mata Pelajaran
+                </h2>
+
+                <p class="card-description">
+                    Data mata pelajaran yang tersedia dalam sistem.
+                </p>
+
+            </div>
+
+            {% if subjects %}
+
+            <div class="card-count">
+                {{ subjects|length }} mata pelajaran
+            </div>
+
+            {% endif %}
+
+        </div>
+
+        {% if subjects %}
+
+        <div class="table-wrapper">
+
+            <table class="data-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            No
+                        </th>
+
+                        <th>
+                            Kode
+                        </th>
+
+                        <th>
+                            Nama
+                        </th>
+
+                        <th>
+                            Deskripsi
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th class="table-action-column">
+                            Aksi
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% for subject in subjects %}
+
+                    <tr>
+
+                        <td>
+                            <span class="table-muted">
+                                {{ loop.index }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="table-primary">
+                                {{ subject.code }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="table-primary">
+                                {{ subject.name }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="table-secondary">
+                                {{ subject.description or '-' }}
+                            </span>
+                        </td>
+
+                        <td>
+
+                            {% if subject.is_active %}
+
+                            <span class="status-badge status-active">
+
+                                <span class="status-dot"></span>
+
+                                <span>
+                                    Aktif
+                                </span>
+
+                            </span>
+
+                            {% else %}
+
+                            <span class="status-badge status-inactive">
+
+                                <span class="status-dot"></span>
+
+                                <span>
+                                    Tidak Aktif
+                                </span>
+
+                            </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            <div class="table-actions">
+
+                                <a
+                                    href="/subjects/{{ subject.id }}/edit"
+                                    class="table-action table-action-edit"
+                                >
+                                    Edit
+                                </a>
+
+                                <form
+                                    method="post"
+                                    action="/subjects/{{ subject.id }}/toggle-active"
+                                    class="inline-form loading-form"
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="{{ csrf_token }}"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="table-action table-action-status loading-button"
+                                    >
+
+                                        <span class="button-spinner"></span>
+
+                                        <span class="button-text">
+
+                                            {% if subject.is_active %}
+                                            Nonaktifkan
+                                            {% else %}
+                                            Aktifkan
+                                            {% endif %}
+
+                                        </span>
+
+                                    </button>
+
+                                </form>
+
+                                <form
+                                    method="post"
+                                    action="/subjects/{{ subject.id }}/delete"
+                                    class="inline-form loading-form delete-form"
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="{{ csrf_token }}"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="table-action table-action-delete loading-button"
+                                    >
+
+                                        <span class="button-spinner"></span>
+
+                                        <span class="button-text">
+                                            Hapus
+                                        </span>
+
+                                    </button>
+
+                                </form>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        {% else %}
+
+        <div class="empty-state">
+
+            <div class="empty-state-icon">
+                M
+            </div>
+
+            <h3 class="empty-state-title">
+                Belum ada mata pelajaran
+            </h3>
+
+            <p class="empty-state-description">
+                Tambahkan mata pelajaran pertama untuk mulai
+                mengelola data evaluasi.
+            </p>
+
+            <a
+                href="/subjects/create"
+                class="button button-primary"
+            >
+                Tambah Mata Pelajaran
+            </a>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}

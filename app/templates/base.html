@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#b08d3c"
+    >
+
+    <title>
+        {% block title %}
+        Tesis Evaluasi
+        {% endblock %}
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/app.css') }}"
+    >
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/layout.css') }}"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', path='css/base.css') }}"
+    >
+
+    {% block head %}
+    {% endblock %}
+</head>
+
+<body>
+
+    {% if current_user %}
+
+    <!-- ==========================================
+         MOBILE OVERLAY
+    =========================================== -->
+
+    <div
+        id="sidebar-overlay"
+        class="sidebar-overlay"
+        aria-hidden="true"
+    ></div>
+
+
+    <!-- ==========================================
+         NAVBAR
+    =========================================== -->
+
+    <header class="navbar">
+
+        <div class="navbar-container">
+
+            <!-- Brand -->
+
+            <a
+                href="/dashboard"
+                class="brand"
+            >
+                <span class="brand-title">
+                    Tesis Evaluasi
+                </span>
+
+                <span class="brand-subtitle">
+                    Sistem Evaluasi
+                </span>
+            </a>
+
+
+            <!-- Desktop Navigation -->
+
+            <nav
+                class="navbar-menu"
+                id="navbar-menu"
+            >
+
+                <a
+                    href="/dashboard"
+                    class="navbar-link {% if request.url.path == '/dashboard' %}active{% endif %}"
+                >
+                    <span class="navbar-link-icon">
+                        ◇
+                    </span>
+
+                    <span>
+                        Dashboard
+                    </span>
+                </a>
+
+
+                {% if current_user.role.value == "ADMIN" %}
+
+                <div class="navbar-dropdown">
+
+                    <button
+                        type="button"
+                        class="navbar-dropdown-button {% if request.url.path.startswith(('/users', '/subjects', '/classes', '/learning-outcomes')) %}active{% endif %}"
+                        aria-expanded="false"
+                    >
+                        <span class="navbar-link-icon">
+                            ▦
+                        </span>
+
+                        <span>
+                            Master Data
+                        </span>
+
+                        <span class="navbar-dropdown-icon">
+                            ▾
+                        </span>
+                    </button>
+
+
+                    <div class="navbar-dropdown-menu">
+
+                        <div class="navbar-dropdown-header">
+                            <span>
+                                MASTER DATA
+                            </span>
+                        </div>
+
+                        <a
+                            href="/users"
+                            class="navbar-dropdown-link {% if request.url.path.startswith('/users') %}active{% endif %}"
+                        >
+                            <span class="dropdown-link-icon">
+                                U
+                            </span>
+
+                            <span>
+                                Users
+                            </span>
+                        </a>
+
+                        <a
+                            href="/subjects"
+                            class="navbar-dropdown-link {% if request.url.path.startswith('/subjects') %}active{% endif %}"
+                        >
+                            <span class="dropdown-link-icon">
+                                M
+                            </span>
+
+                            <span>
+                                Mata Pelajaran
+                            </span>
+                        </a>
+
+                        <a
+                            href="/classes"
+                            class="navbar-dropdown-link {% if request.url.path.startswith('/classes') %}active{% endif %}"
+                        >
+                            <span class="dropdown-link-icon">
+                                K
+                            </span>
+
+                            <span>
+                                Kelas
+                            </span>
+                        </a>
+
+                        <a
+                            href="/learning-outcomes"
+                            class="navbar-dropdown-link {% if request.url.path.startswith('/learning-outcomes') %}active{% endif %}"
+                        >
+                            <span class="dropdown-link-icon">
+                                C
+                            </span>
+
+                            <span>
+                                Capaian Pembelajaran
+                            </span>
+                        </a>
+
+                    </div>
+
+                </div>
+
+                {% endif %}
+
+
+                <a
+                    href="/evaluations"
+                    class="navbar-link {% if request.url.path.startswith('/evaluations') %}active{% endif %}"
+                >
+                    <span class="navbar-link-icon">
+                        ✓
+                    </span>
+
+                    <span>
+                        Evaluasi
+                    </span>
+                </a>
+
+
+                <a
+                    href="/templates"
+                    class="navbar-link {% if request.url.path.startswith('/templates') %}active{% endif %}"
+                >
+                    <span class="navbar-link-icon">
+                        □
+                    </span>
+
+                    <span>
+                        Template
+                    </span>
+                </a>
+
+
+                <a
+                    href="/documents"
+                    class="navbar-link {% if request.url.path.startswith('/documents') %}active{% endif %}"
+                >
+                    <span class="navbar-link-icon">
+                        ≡
+                    </span>
+
+                    <span>
+                        Dokumen
+                    </span>
+                </a>
+
+            </nav>
+
+
+            <!-- User -->
+
+            <div class="navbar-user">
+
+                <div class="navbar-user-info">
+
+                    <span class="navbar-user-name">
+                        {{ current_user.full_name }}
+                    </span>
+
+                </div>
+
+
+                <div class="navbar-user-actions">
+
+                    <a
+                        href="/profile"
+                        class="button button-small button-outline"
+                    >
+                        Profile
+                    </a>
+
+
+                    <form
+                        method="post"
+                        action="/logout"
+                        class="loading-form"
+                    >
+
+                        <input
+                            type="hidden"
+                            name="csrf_token"
+                            value="{{ csrf_token }}"
+                        >
+
+                        <button
+                            type="submit"
+                            class="button button-small button-danger loading-button"
+                        >
+                            <span class="button-spinner"></span>
+
+                            <span class="button-text">
+                                Logout
+                            </span>
+                        </button>
+
+                    </form>
+
+                </div>
+
+            </div>
+
+
+            <!-- Mobile Button -->
+
+            <button
+                type="button"
+                id="mobile-menu-button"
+                class="mobile-menu-button"
+                aria-label="Buka menu"
+                aria-expanded="false"
+            >
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+        </div>
+
+    </header>
+
+    {% endif %}
+
+
+    <!-- ==========================================
+         MAIN
+    =========================================== -->
+
+    <main class="container">
+
+        {% block content %}
+        {% endblock %}
+
+    </main>
+
+
+    <!-- ==========================================
+         PAGE LOADING
+    =========================================== -->
+
+    <div
+        id="page-loading"
+        class="page-loading"
+        aria-hidden="true"
+    >
+
+        <div class="loading-content">
+
+            <div class="loading-spinner"></div>
+
+            <span>
+                Memproses...
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==========================================
+         JAVASCRIPT
+    =========================================== -->
+
+    <script
+        src="{{ url_for('static', path='js/app.js') }}"
+    ></script>
+    <script
+        src="{{ url_for('static', path='js/layout.js') }}"
+    ></script>
+
+    {% block scripts %}
+    {% endblock %}
+
+</body>
+</html>

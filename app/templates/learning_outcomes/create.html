@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}
+Tambah Capaian Pembelajaran
+{% endblock %}
+
+{% block content %}
+
+<div class="page">
+
+    <div class="page-header">
+
+        <div class="page-header-content">
+
+            <span class="page-eyebrow">
+                MASTER DATA
+            </span>
+
+            <h1 class="page-title">
+                Tambah Capaian Pembelajaran
+            </h1>
+
+            <p class="page-description">
+                Tambahkan capaian pembelajaran untuk mata pelajaran tertentu.
+            </p>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <div class="card-header">
+
+            <div class="card-header-content">
+
+                <h2 class="card-title">
+                    Informasi Capaian Pembelajaran
+                </h2>
+
+                <p class="card-description">
+                    Lengkapi mata pelajaran, kode, dan deskripsi capaian
+                    pembelajaran.
+                </p>
+
+            </div>
+
+        </div>
+
+        {% if error %}
+
+        <div style="padding: 1.25rem 1.5rem 0;">
+
+            <div class="alert alert-error">
+                {{ error }}
+            </div>
+
+        </div>
+
+        {% endif %}
+
+        {% if not subjects %}
+
+        <div class="empty-state">
+
+            <div class="empty-state-icon">
+                M
+            </div>
+
+            <h3 class="empty-state-title">
+                Belum ada mata pelajaran aktif
+            </h3>
+
+            <p class="empty-state-description">
+                Tambahkan mata pelajaran aktif terlebih dahulu
+                sebelum membuat capaian pembelajaran.
+            </p>
+
+            <a
+                href="/subjects/create"
+                class="button button-primary"
+            >
+                Tambah Mata Pelajaran
+            </a>
+
+        </div>
+
+        {% else %}
+
+        <div style="padding: 1.5rem;">
+
+            <form
+                method="post"
+                action="/learning-outcomes/create"
+                class="form loading-form"
+            >
+
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token }}"
+                >
+
+                <div class="form-group">
+
+                    <label for="subject_id">
+                        Mata Pelajaran
+                    </label>
+
+                    <select
+                        id="subject_id"
+                        name="subject_id"
+                        required
+                    >
+
+                        <option value="">
+                            -- Pilih Mata Pelajaran --
+                        </option>
+
+                        {% for subject in subjects %}
+
+                        <option
+                            value="{{ subject.id }}"
+                            {% if form and form.subject_id == subject.id %}
+                            selected
+                            {% endif %}
+                        >
+                            {{ subject.code }} - {{ subject.name }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="code">
+                        Kode
+                    </label>
+
+                    <input
+                        id="code"
+                        type="text"
+                        name="code"
+                        value="{{ form.code if form else '' }}"
+                        placeholder="Contoh: CP-01"
+                        maxlength="50"
+                        required
+                    >
+
+                    <small class="muted">
+                        Contoh: CP-01, CP-02, CP-03.
+                    </small>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="description">
+                        Deskripsi Capaian Pembelajaran
+                    </label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        rows="6"
+                        placeholder="Masukkan deskripsi capaian pembelajaran"
+                        required
+                    >{{ form.description if form else '' }}</textarea>
+
+                </div>
+
+                <div
+                    style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-end;
+                        gap: 0.75rem;
+                        margin-top: 1.5rem;
+                        padding-top: 1.5rem;
+                        border-top: 1px solid var(--color-border);
+                    "
+                >
+
+                    <a
+                        href="/learning-outcomes"
+                        class="button button-outline"
+                    >
+                        Batal
+                    </a>
+
+                    <button
+                        type="submit"
+                        class="button button-primary loading-button"
+                    >
+                        <span class="button-spinner"></span>
+
+                        <span class="button-text">
+                            Simpan
+                        </span>
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}

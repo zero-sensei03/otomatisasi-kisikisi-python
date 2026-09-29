@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}
+Edit Capaian Pembelajaran
+{% endblock %}
+
+{% block content %}
+
+<div class="page">
+
+    <div class="page-header">
+
+        <div class="page-header-content">
+
+            <span class="page-eyebrow">
+                MASTER DATA
+            </span>
+
+            <h1 class="page-title">
+                Edit Capaian Pembelajaran
+            </h1>
+
+            <p class="page-description">
+                Perbarui data capaian pembelajaran.
+            </p>
+
+        </div>
+
+    </div>
+
+    <div class="card">
+
+        <div class="card-header">
+
+            <div class="card-header-content">
+
+                <h2 class="card-title">
+                    Informasi Capaian Pembelajaran
+                </h2>
+
+                <p class="card-description">
+                    Perbarui mata pelajaran, kode, dan deskripsi capaian
+                    pembelajaran.
+                </p>
+
+            </div>
+
+        </div>
+
+        {% if error %}
+
+        <div style="padding: 1.25rem 1.5rem 0;">
+
+            <div class="alert alert-error">
+                {{ error }}
+            </div>
+
+        </div>
+
+        {% endif %}
+
+        <div style="padding: 1.5rem;">
+
+            <form
+                method="post"
+                action="/learning-outcomes/{{ learning_outcome.id }}/edit"
+                class="form loading-form"
+            >
+
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token }}"
+                >
+
+                <div class="form-group">
+
+                    <label for="subject_id">
+                        Mata Pelajaran
+                    </label>
+
+                    <select
+                        id="subject_id"
+                        name="subject_id"
+                        required
+                    >
+
+                        {% for subject in subjects %}
+
+                        <option
+                            value="{{ subject.id }}"
+                            {% if form and form.subject_id == subject.id %}
+                            selected
+                            {% elif not form and subject.id == learning_outcome.subject_id %}
+                            selected
+                            {% endif %}
+                        >
+                            {{ subject.code }} - {{ subject.name }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="code">
+                        Kode
+                    </label>
+
+                    <input
+                        id="code"
+                        type="text"
+                        name="code"
+                        value="{{ form.code if form else learning_outcome.code }}"
+                        placeholder="Contoh: CP-01"
+                        maxlength="50"
+                        required
+                    >
+
+                    <small class="muted">
+                        Kode unik untuk capaian pembelajaran.
+                    </small>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="description">
+                        Deskripsi Capaian Pembelajaran
+                    </label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        rows="6"
+                        placeholder="Masukkan deskripsi capaian pembelajaran"
+                        required
+                    >{{ form.description if form else learning_outcome.description }}</textarea>
+
+                </div>
+
+                <div
+                    style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-end;
+                        gap: 0.75rem;
+                        margin-top: 1.5rem;
+                        padding-top: 1.5rem;
+                        border-top: 1px solid var(--color-border);
+                    "
+                >
+
+                    <a
+                        href="/learning-outcomes"
+                        class="button button-outline"
+                    >
+                        Batal
+                    </a>
+
+                    <button
+                        type="submit"
+                        class="button button-primary loading-button"
+                    >
+                        <span class="button-spinner"></span>
+
+                        <span class="button-text">
+                            Simpan Perubahan
+                        </span>
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

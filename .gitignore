@@ -1,0 +1,36 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Environment
+.env
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+
+# Generated documents
+storage/generated/*
+
+# Uploaded templates
+storage/templates/*
+
+# Keep storage directories
+!storage/generated/.gitkeep
+!storage/templates/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db

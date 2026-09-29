@@ -1,0 +1,356 @@
+/* =========================
+   Login Page
+========================= */
+
+.auth-page {
+    position: relative;
+
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(420px, 0.9fr);
+
+    min-height: 100vh;
+
+    overflow: hidden;
+
+    background:
+        radial-gradient(
+            circle at 15% 20%,
+            rgb(99 102 241 / 0.14),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 80% 80%,
+            rgb(79 70 229 / 0.08),
+            transparent 30%
+        ),
+        var(--color-background);
+}
+
+/* =========================
+   Branding
+========================= */
+
+.auth-brand {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 4rem;
+
+    overflow: hidden;
+}
+
+.auth-brand::before {
+    content: "";
+
+    position: absolute;
+
+    width: 420px;
+    height: 420px;
+
+    top: -180px;
+    left: -160px;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgb(79 70 229 / 0.15),
+            transparent 70%
+        );
+}
+
+.auth-brand::after {
+    content: "";
+
+    position: absolute;
+
+    width: 500px;
+    height: 500px;
+
+    right: -260px;
+    bottom: -300px;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgb(99 102 241 / 0.1),
+            transparent 70%
+        );
+}
+
+.auth-brand-content {
+    position: relative;
+    z-index: 1;
+
+    width: min(100%, 600px);
+}
+
+.auth-brand-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    margin-bottom: 1.5rem;
+    padding: 0.5rem 0.75rem;
+
+    color: var(--color-primary);
+
+    background: var(--color-primary-light);
+
+    border: 1px solid rgb(99 102 241 / 0.12);
+    border-radius: 999px;
+
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+}
+
+.auth-brand-badge::before {
+    content: "";
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: var(--color-primary);
+}
+
+.auth-brand h2 {
+    max-width: 600px;
+
+    margin: 0 0 1.25rem;
+
+    color: var(--color-text);
+
+    font-size: clamp(2.25rem, 4vw, 4rem);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+}
+
+.auth-brand h2 span {
+    color: var(--color-primary);
+}
+
+.auth-brand-description {
+    max-width: 540px;
+
+    margin: 0;
+
+    color: var(--color-text-secondary);
+
+    font-size: 1.05rem;
+    line-height: 1.8;
+}
+
+/* =========================
+   Feature List
+========================= */
+
+.auth-features {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    gap: 1rem;
+
+    margin-top: 3rem;
+}
+
+.auth-feature {
+    padding: 1rem;
+
+    background: rgb(255 255 255 / 0.7);
+
+    border: 1px solid rgb(226 232 240 / 0.8);
+    border-radius: var(--radius-xl);
+
+    backdrop-filter: blur(10px);
+}
+
+.auth-feature-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 40px;
+    height: 40px;
+
+    margin-bottom: 0.875rem;
+
+    color: var(--color-primary);
+
+    background: var(--color-primary-light);
+
+    border-radius: var(--radius-lg);
+}
+
+.auth-feature strong {
+    display: block;
+
+    margin-bottom: 0.25rem;
+
+    color: var(--color-text);
+
+    font-size: var(--font-size-sm);
+}
+
+.auth-feature span {
+    display: block;
+
+    color: var(--color-text-secondary);
+
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
+}
+
+/* =========================
+   Login Section
+========================= */
+
+.auth-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 2rem;
+
+    background: rgb(255 255 255 / 0.72);
+
+    border-left: 1px solid rgb(226 232 240 / 0.8);
+
+    backdrop-filter: blur(20px);
+}
+
+.auth-card {
+    width: min(100%, 430px);
+
+    padding: 2.5rem;
+
+    background: var(--color-surface);
+
+    border: 1px solid rgb(226 232 240 / 0.9);
+    border-radius: var(--radius-2xl);
+
+    box-shadow: var(--shadow-lg);
+}
+
+/* =========================
+   Header
+========================= */
+
+.auth-header {
+    margin-bottom: 2rem;
+}
+
+.auth-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 48px;
+    height: 48px;
+
+    margin-bottom: 1.25rem;
+
+    color: #ffffff;
+
+    background:
+        linear-gradient(
+            135deg,
+            #6366f1,
+            #4338ca
+        );
+
+    border-radius: var(--radius-xl);
+
+    box-shadow:
+        0 10px 25px rgb(79 70 229 / 0.25);
+}
+
+.auth-logo svg {
+    width: 24px;
+    height: 24px;
+}
+
+.auth-header h1 {
+    margin: 0 0 0.5rem;
+
+    color: var(--color-text);
+
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+
+    letter-spacing: -0.025em;
+}
+
+.auth-header p {
+    margin: 0;
+
+    color: var(--color-text-secondary);
+
+    font-size: var(--font-size-sm);
+    line-height: 1.7;
+}
+
+/* =========================
+   Login Footer
+========================= */
+
+.auth-footer {
+    margin-top: 1.5rem;
+
+    color: var(--color-text-muted);
+
+    font-size: var(--font-size-xs);
+    line-height: 1.6;
+
+    text-align: center;
+}
+
+/* =========================
+   Responsive
+========================= */
+
+@media (max-width: 960px) {
+    .auth-page {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-brand {
+        display: none;
+    }
+
+    .auth-panel {
+        min-height: 100vh;
+
+        padding: 1.5rem;
+
+        border-left: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-panel {
+        padding: 1rem;
+    }
+
+    .auth-card {
+        padding: 1.5rem;
+
+        border-radius: var(--radius-xl);
+    }
+
+    .auth-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .auth-header h1 {
+        font-size: 1.375rem;
+    }
+}
