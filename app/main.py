@@ -6,7 +6,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.templating import Jinja2Templates
 
 from app.core.config import settings
-from app.routers import auth, dashboard, users, subjects, class_room, learning_outcomes
+from app.routers import auth, dashboard, users, subjects, class_room, learning_outcomes, evaluations
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -49,6 +49,7 @@ app.include_router(users.router)
 app.include_router(subjects.router)
 app.include_router(class_room.router)
 app.include_router(learning_outcomes.router)
+app.include_router(evaluations.router)
 
 
 @app.get("/health")

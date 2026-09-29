@@ -44,3 +44,8 @@ class Teacher(Base):
         "User",
         back_populates="teacher",
     )
+
+    evaluations = relationship(
+        "Evaluation",
+        back_populates="teacher",
+    )

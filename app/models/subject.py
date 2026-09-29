@@ -58,3 +58,8 @@ class Subject(Base):
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
+
+    evaluations = relationship(
+        "Evaluation",
+        back_populates="subject",
+    )

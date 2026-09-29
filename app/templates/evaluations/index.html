@@ -1,0 +1,713 @@
+{% extends "base.html" %}
+
+{% block title %}
+Evaluasi
+{% endblock %}
+
+{% block content %}
+
+<div class="page">
+
+    <div class="page-header">
+
+        <div class="page-header-content">
+
+            <span class="page-eyebrow">
+                EVALUATION
+            </span>
+
+            <h1 class="page-title">
+                Evaluasi
+            </h1>
+
+            <p class="page-description">
+                Kelola data evaluasi yang digunakan untuk
+                penyusunan kisi-kisi dan soal.
+            </p>
+
+        </div>
+
+        <div class="page-header-actions">
+
+            <a
+                href="/evaluations/create"
+                class="button button-primary"
+            >
+                + Tambah Evaluasi
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <!-- FILTER -->
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-header-content">
+                <h2 class="card-title">
+                    Filter Evaluasi
+                </h2>
+                <p class="card-description">
+                    Gunakan filter untuk menemukan data evaluasi.
+                </p>
+            </div>
+        </div>
+
+        <div style="padding: 1.25rem 1.5rem;">
+            <form
+                method="get"
+                action="/evaluations"
+                class="form loading-form"
+            >
+
+                <div class="filter-grid">
+
+                    <div class="form-group">
+                        <label for="search">
+                            Pencarian
+                        </label>
+                        <input
+                            id="search"
+                            type="text"
+                            name="search"
+                            value="{{ filters.search }}"
+                            placeholder="Cari nama evaluasi..."
+                        >
+                        <small>
+                            Nama, deskripsi, atau tahun ajaran.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="subject_id">
+                            Mata Pelajaran
+                        </label>
+                        <select
+                            id="subject_id"
+                            name="subject_id"
+                        >
+                            <option value="">
+                                Semua mata pelajaran
+                            </option>
+
+                            {% for subject in subjects %}
+                            <option
+                                value="{{ subject.id }}"
+                                {% if filters.subject_id == subject.id %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ subject.code }} - {{ subject.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="class_id">
+                            Kelas
+                        </label>
+                        <select
+                            id="class_id"
+                            name="class_id"
+                        >
+                            <option value="">
+                                Semua kelas
+                            </option>
+
+                            {% for class_room in classes %}
+                            <option
+                                value="{{ class_room.id }}"
+                                {% if filters.class_id == class_room.id %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ class_room.grade_level }} - {{ class_room.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="semester">
+                            Semester
+                        </label>
+                        <select
+                            id="semester"
+                            name="semester"
+                        >
+                            <option value="">
+                                Semua semester
+                            </option>
+
+                            <option
+                                value="GANJIL"
+                                {% if filters.semester == "GANJIL" %}
+                                    selected
+                                {% endif %}
+                            >
+                                Ganjil
+                            </option>
+
+                            <option
+                                value="GENAP"
+                                {% if filters.semester == "GENAP" %}
+                                    selected
+                                {% endif %}
+                            >
+                                Genap
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="academic_year">
+                            Tahun Ajaran
+                        </label>
+                        <input
+                            id="academic_year"
+                            type="text"
+                            name="academic_year"
+                            value="{{ filters.academic_year }}"
+                            placeholder="Contoh: 2026/2027"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="status">
+                            Status
+                        </label>
+                        <select
+                            id="status"
+                            name="status"
+                        >
+                            <option value="">
+                                Semua status
+                            </option>
+
+                            {% for item in statuses %}
+                            <option
+                                value="{{ item.value }}"
+                                {% if filters.status == item.value %}
+                                    selected
+                                {% endif %}
+                            >
+                                {% if item.value == "DRAFT" %}
+                                    Draft
+                                {% elif item.value == "READY" %}
+                                    Siap
+                                {% elif item.value == "ARCHIVED" %}
+                                    Diarsipkan
+                                {% else %}
+                                    {{ item.value }}
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="filter-actions">
+
+                    <div class="form-group">
+                        <label for="per_page">
+                            Data per halaman
+                        </label>
+
+                        <select
+                            id="per_page"
+                            name="per_page"
+                        >
+                            <option
+                                value="10"
+                                {% if filters.per_page == 10 %}
+                                    selected
+                                {% endif %}
+                            >
+                                10
+                            </option>
+
+                            <option
+                                value="20"
+                                {% if filters.per_page == 20 %}
+                                    selected
+                                {% endif %}
+                            >
+                                20
+                            </option>
+
+                            <option
+                                value="50"
+                                {% if filters.per_page == 50 %}
+                                    selected
+                                {% endif %}
+                            >
+                                50
+                            </option>
+
+                            <option
+                                value="100"
+                                {% if filters.per_page == 100 %}
+                                    selected
+                                {% endif %}
+                            >
+                                100
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="filter-action-buttons">
+                        <a
+                            href="/evaluations"
+                            class="button button-secondary"
+                        >
+                            Reset
+                        </a>
+
+                        <button
+                            type="submit"
+                            class="button button-primary loading-button"
+                        >
+                            <span class="button-spinner"></span>
+                            <span class="button-text">
+                                Terapkan Filter
+                            </span>
+                        </button>
+                    </div>
+
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+
+
+    <!-- TABLE -->
+
+    <div
+        class="card"
+        style="margin-top: 1.5rem;"
+    >
+
+        <div class="card-header">
+
+            <div class="card-header-content">
+
+                <h2 class="card-title">
+                    Daftar Evaluasi
+                </h2>
+
+                <p class="card-description">
+
+                    Menampilkan
+                    <strong>
+                        {{ evaluations|length }}
+                    </strong>
+                    dari
+                    <strong>
+                        {{ pagination.total }}
+                    </strong>
+                    data.
+
+                </p>
+
+            </div>
+
+
+            {% if pagination.total %}
+
+            <div class="card-count">
+                {{ pagination.total }} evaluasi
+            </div>
+
+            {% endif %}
+
+        </div>
+
+
+        {% if evaluations %}
+
+        <div class="table-wrapper">
+
+            <table class="data-table">
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            #
+                        </th>
+
+                        <th>
+                            Evaluasi
+                        </th>
+
+                        <th>
+                            Guru
+                        </th>
+
+                        <th>
+                            Mata Pelajaran
+                        </th>
+
+                        <th>
+                            Kelas
+                        </th>
+
+                        <th>
+                            Semester
+                        </th>
+
+                        <th>
+                            Tahun Ajaran
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <th class="table-action-column">
+                            Aksi
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    {% for evaluation in evaluations %}
+
+                    <tr>
+
+                        <td>
+                            <span class="table-muted">
+                                {{
+                                    (
+                                        (pagination.page - 1)
+                                        * pagination.per_page
+                                    )
+                                    + loop.index
+                                }}
+                            </span>
+                        </td>
+
+
+                        <td>
+
+                            <span class="table-primary">
+                                {{ evaluation.name }}
+                            </span>
+
+                            {% if evaluation.description %}
+
+                            <div class="table-secondary">
+                                {{ evaluation.description }}
+                            </div>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <td>
+
+                            <span class="table-primary">
+                                {{ evaluation.teacher.user.full_name }}
+                            </span>
+
+                        </td>
+
+
+                        <td>
+
+                            <span class="table-primary">
+                                {{ evaluation.subject.code }}
+                            </span>
+
+                            <div class="table-secondary">
+                                {{ evaluation.subject.name }}
+                            </div>
+
+                        </td>
+
+
+                        <td>
+
+                            <span class="table-primary">
+                                {{ evaluation.class_room.grade_level }}
+                            </span>
+
+                            <div class="table-secondary">
+                                {{ evaluation.class_room.name }}
+                            </div>
+
+                        </td>
+
+
+                        <td>
+
+                            <span class="table-secondary">
+                                {{ evaluation.semester }}
+                            </span>
+
+                        </td>
+
+
+                        <td>
+
+                            <span class="table-secondary">
+                                {{ evaluation.academic_year }}
+                            </span>
+
+                        </td>
+
+
+                        <td>
+
+                            {% if evaluation.status.value == "DRAFT" %}
+
+                            <span class="status-badge status-warning">
+                                <span class="status-dot"></span>
+                                <span>Draft</span>
+                            </span>
+
+                            {% elif evaluation.status.value == "READY" %}
+
+                            <span class="status-badge status-active">
+                                <span class="status-dot"></span>
+                                <span>Siap</span>
+                            </span>
+
+                            {% elif evaluation.status.value == "ARCHIVED" %}
+
+                            <span class="status-badge status-inactive">
+                                <span class="status-dot"></span>
+                                <span>Diarsipkan</span>
+                            </span>
+
+                            {% else %}
+
+                            <span class="status-badge status-inactive">
+                                <span class="status-dot"></span>
+                                <span>
+                                    {{ evaluation.status.value }}
+                                </span>
+                            </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <td>
+
+                            <div class="table-actions">
+
+                                <a
+                                    href="/evaluations/{{ evaluation.id }}"
+                                    class="table-action table-action-status"
+                                >
+                                    Detail
+                                </a>
+
+                                <a
+                                    href="/evaluations/{{ evaluation.id }}/edit"
+                                    class="table-action table-action-edit"
+                                >
+                                    Edit
+                                </a>
+
+                                <form
+                                    method="post"
+                                    action="/evaluations/{{ evaluation.id }}/delete"
+                                    class="inline-form loading-form delete-form"
+                                    data-confirm-message="Apakah kamu yakin ingin menghapus evaluasi ini?"
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="{{ csrf_token }}"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="table-action table-action-delete loading-button"
+                                    >
+
+                                        <span class="button-spinner"></span>
+
+                                        <span class="button-text">
+                                            Hapus
+                                        </span>
+
+                                    </button>
+
+                                </form>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- PAGINATION -->
+
+        {% if pagination.total_pages > 1 %}
+
+        <div class="pagination">
+
+            <div class="pagination-info">
+
+                Menampilkan
+                <strong>
+                    {{ ((pagination.page - 1) * pagination.per_page) + 1 }}
+                </strong>
+                -
+                <strong>
+                    {{
+                        [
+                            pagination.page * pagination.per_page,
+                            pagination.total
+                        ] | min
+                    }}
+                </strong>
+                dari
+                <strong>
+                    {{ pagination.total }}
+                </strong>
+                data
+
+            </div>
+
+
+            <nav
+                class="pagination-nav"
+                aria-label="Pagination"
+            >
+
+                {% if pagination.has_previous %}
+
+                <a
+                    href="/evaluations?search={{ filters.search | urlencode }}&subject_id={{ filters.subject_id or '' }}&class_id={{ filters.class_id or '' }}&semester={{ filters.semester | urlencode }}&academic_year={{ filters.academic_year | urlencode }}&status={{ filters.status | urlencode }}&per_page={{ filters.per_page }}&page={{ pagination.page - 1 }}"
+                    class="pagination-link"
+                >
+                    ←
+                </a>
+
+                {% else %}
+
+                <span class="pagination-link disabled">
+                    ←
+                </span>
+
+                {% endif %}
+
+
+                {% set start_page = pagination.page - 2 %}
+
+                {% if start_page < 1 %}
+                    {% set start_page = 1 %}
+                {% endif %}
+
+
+                {% set end_page = pagination.page + 2 %}
+
+                {% if end_page > pagination.total_pages %}
+                    {% set end_page = pagination.total_pages %}
+                {% endif %}
+
+
+                {% for page_number in range(
+                    start_page,
+                    end_page + 1
+                ) %}
+
+                <a
+                    href="/evaluations?search={{ filters.search | urlencode }}&subject_id={{ filters.subject_id or '' }}&class_id={{ filters.class_id or '' }}&semester={{ filters.semester | urlencode }}&academic_year={{ filters.academic_year | urlencode }}&status={{ filters.status | urlencode }}&per_page={{ filters.per_page }}&page={{ page_number }}"
+                    class="
+                        pagination-link
+                        {% if page_number == pagination.page %}
+                            active
+                        {% endif %}
+                    "
+                >
+                    {{ page_number }}
+                </a>
+
+                {% endfor %}
+
+
+                {% if pagination.has_next %}
+
+                <a
+                    href="/evaluations?search={{ filters.search | urlencode }}&subject_id={{ filters.subject_id or '' }}&class_id={{ filters.class_id or '' }}&semester={{ filters.semester | urlencode }}&academic_year={{ filters.academic_year | urlencode }}&status={{ filters.status | urlencode }}&per_page={{ filters.per_page }}&page={{ pagination.page + 1 }}"
+                    class="pagination-link"
+                >
+                    →
+                </a>
+
+                {% else %}
+
+                <span class="pagination-link disabled">
+                    →
+                </span>
+
+                {% endif %}
+
+            </nav>
+
+        </div>
+
+        {% endif %}
+
+
+        {% else %}
+
+        <div class="empty-state">
+
+            <div class="empty-state-icon">
+                E
+            </div>
+
+            <h3 class="empty-state-title">
+                Tidak ada evaluasi
+            </h3>
+
+            <p class="empty-state-description">
+                Belum ada data yang sesuai dengan filter
+                yang digunakan.
+            </p>
+
+            <a
+                href="/evaluations/create"
+                class="button button-primary"
+            >
+                Tambah Evaluasi
+            </a>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+{% endblock %}

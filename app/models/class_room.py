@@ -51,7 +51,7 @@ class ClassRoom(Base):
         nullable=False,
     )
 
-    # evaluations = relationship(
-    #     "Evaluation",
-    #     back_populates="class_room",
-    # )
+    evaluations = relationship(
+        "Evaluation",
+        back_populates="class_room",
+    )

@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}
+Tambah Evaluasi
+{% endblock %}
+
+{% block content %}
+
+<div class="page">
+
+    <div class="page-header">
+
+        <div class="page-header-content">
+
+            <span class="page-eyebrow">
+                EVALUATION
+            </span>
+
+            <h1 class="page-title">
+                Tambah Evaluasi
+            </h1>
+
+            <p class="page-description">
+                Buat data evaluasi baru untuk penyusunan
+                kisi-kisi dan soal.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="card-header">
+
+            <div class="card-header-content">
+
+                <h2 class="card-title">
+                    Informasi Evaluasi
+                </h2>
+
+                <p class="card-description">
+                    Lengkapi informasi evaluasi yang akan digunakan
+                    dalam sistem.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        {% if error %}
+
+        <div style="padding: 1.25rem 1.5rem 0;">
+
+            <div class="alert alert-error">
+                {{ error }}
+            </div>
+
+        </div>
+
+        {% endif %}
+
+
+        <div style="padding: 1.5rem;">
+
+            <form
+                method="post"
+                action="/evaluations/create"
+                class="form loading-form"
+            >
+
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token }}"
+                >
+
+
+                {% if current_user.role.value == "ADMIN" %}
+
+                <div class="form-group">
+
+                    <label for="teacher_id">
+                        Guru
+                    </label>
+
+                    <select
+                        id="teacher_id"
+                        name="teacher_id"
+                        required
+                    >
+
+                        <option value="">
+                            Pilih guru
+                        </option>
+
+                        {% for teacher in teachers %}
+
+                        <option
+                            value="{{ teacher.id }}"
+                            {% if form.get("teacher_id") == teacher.id %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ teacher.user.full_name }}
+                            {% if teacher.employee_number %}
+                                - {{ teacher.employee_number }}
+                            {% endif %}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+                {% else %}
+
+                <div class="form-group">
+
+                    <label for="teacher">
+                        Guru
+                    </label>
+
+                    <input
+                        id="teacher"
+                        type="text"
+                        value="{{ current_user.full_name }}"
+                        disabled
+                    >
+
+                </div>
+
+                {% endif %}
+
+
+                <div class="form-group">
+
+                    <label for="name">
+                        Nama Evaluasi
+                    </label>
+
+                    <input
+                        id="name"
+                        type="text"
+                        name="name"
+                        value="{{ form.get('name', '') }}"
+                        placeholder="Contoh: Penilaian Harian Bab 1"
+                        maxlength="200"
+                        required
+                        autofocus
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="subject_id">
+                        Mata Pelajaran
+                    </label>
+
+                    <select
+                        id="subject_id"
+                        name="subject_id"
+                        required
+                    >
+
+                        <option value="">
+                            Pilih mata pelajaran
+                        </option>
+
+                        {% for subject in subjects %}
+
+                        <option
+                            value="{{ subject.id }}"
+                            {% if form.get("subject_id") == subject.id %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ subject.code }} - {{ subject.name }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="class_id">
+                        Kelas
+                    </label>
+
+                    <select
+                        id="class_id"
+                        name="class_id"
+                        required
+                    >
+
+                        <option value="">
+                            Pilih kelas
+                        </option>
+
+                        {% for class_room in classes %}
+
+                        <option
+                            value="{{ class_room.id }}"
+                            {% if form.get("class_id") == class_room.id %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ class_room.grade_level }}
+                            - {{ class_room.name }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div
+                    style="
+                        display: grid;
+                        grid-template-columns:
+                            repeat(3, minmax(0, 1fr));
+                        gap: 1rem;
+                    "
+                >
+
+                    <div class="form-group">
+
+                        <label for="semester">
+                            Semester
+                        </label>
+
+                        <select
+                            id="semester"
+                            name="semester"
+                            required
+                        >
+
+                            <option value="">
+                                Pilih semester
+                            </option>
+
+                            <option
+                                value="GANJIL"
+                                {% if form.get("semester") == "GANJIL" %}
+                                    selected
+                                {% endif %}
+                            >
+                                Ganjil
+                            </option>
+
+                            <option
+                                value="GENAP"
+                                {% if form.get("semester") == "GENAP" %}
+                                    selected
+                                {% endif %}
+                            >
+                                Genap
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="academic_year">
+                            Tahun Ajaran
+                        </label>
+
+                        <input
+                            id="academic_year"
+                            type="text"
+                            name="academic_year"
+                            value="{{ form.get('academic_year', '') }}"
+                            placeholder="2026/2027"
+                            maxlength="20"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="status">
+                            Status
+                        </label>
+
+                        <select
+                            id="status"
+                            name="status"
+                        >
+
+                            {% for item in statuses %}
+
+                            <option
+                                value="{{ item.value }}"
+                                {% if form.get("status", "DRAFT") == item.value %}
+                                    selected
+                                {% endif %}
+                            >
+                                {% if item.value == "DRAFT" %}
+                                    Draft
+                                {% elif item.value == "READY" %}
+                                    Siap
+                                {% elif item.value == "ARCHIVED" %}
+                                    Diarsipkan
+                                {% else %}
+                                    {{ item.value }}
+                                {% endif %}
+                            </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="description">
+                        Deskripsi
+                    </label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        rows="5"
+                        placeholder="Deskripsi evaluasi (opsional)"
+                    >{{ form.get('description', '') }}</textarea>
+
+                </div>
+
+
+                <div
+                    style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-end;
+                        gap: 0.75rem;
+                        margin-top: 1.5rem;
+                        padding-top: 1.5rem;
+                        border-top: 1px solid var(--color-border);
+                    "
+                >
+
+                    <a
+                        href="/evaluations"
+                        class="button button-outline"
+                    >
+                        Batal
+                    </a>
+
+                    <button
+                        type="submit"
+                        class="button button-primary loading-button"
+                    >
+
+                        <span class="button-spinner"></span>
+
+                        <span class="button-text">
+                            Simpan Evaluasi
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

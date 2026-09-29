@@ -2,7 +2,7 @@ from sqlalchemy import select
 
 from app.core.database import SessionLocal
 from app.core.security import hash_password
-from app.models import User, UserRole
+from app.models import User, UserRole, Teacher
 
 
 USERS = [
@@ -53,6 +53,12 @@ def seed_users():
             )
 
             db.add(user)
+
+            db.flush()
+
+            if user.role == UserRole.GURU:
+                teacher = Teacher(user_id=user.id)
+                db.add(teacher)
 
             print(
                 f"Created user: {data['username']}"
