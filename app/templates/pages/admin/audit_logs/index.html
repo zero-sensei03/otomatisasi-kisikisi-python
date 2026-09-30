@@ -1,0 +1,247 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}
+Audit Log
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <div class="page-header-heading">
+            <div class="breadcrumb">
+                <a href="/dashboard" class="breadcrumb-link">Dashboard</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-current">Audit Log</span>
+            </div>
+
+            <h1>Audit Log</h1>
+            <p class="page-description">
+                Kelola audit log yang dilakukan oleh user.
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="card filter-card">
+    <div class="card-header filter-header">
+        <h3 class="card-title">
+            <span class="fa-solid fa-filter"></span> Filter & Pencarian
+        </h3>
+    </div>
+
+    <div class="card-body">
+        <form
+            method="get"
+            action="/audit-logs"
+            class="filter-grid"
+        >
+            <!-- Search Field -->
+            <div class="form-group filter-field-search">
+                <label for="search" class="form-label">Nama Pengguna</label>
+                <div class="input-icon-wrapper">
+                    <span class="fa-solid fa-magnifying-glass input-icon"></span>
+                    <input
+                        id="full_name"
+                        name="full_name"
+                        type="text"
+                        class="form-input with-icon"
+                        value="{{ full_name }}"
+                        placeholder="Nama Pengguna ..."
+                    >
+                </div>
+            </div>
+            <div class="form-group filter-field-search">
+                <label for="search" class="form-label">Action</label>
+                <div>
+                    <input
+                        id="action"
+                        name="action"
+                        type="text"
+                        class="form-input"
+                        value="{{ action }}"
+                        placeholder="Action ..."
+                    >
+                </div>
+            </div>
+            <div class="form-group filter-field-search">
+                <label for="search" class="form-label">Fitur</label>
+                <div>
+                    <input
+                        id="feature"
+                        name="feature"
+                        type="text"
+                        class="form-input"
+                        value="{{ feature }}"
+                        placeholder="Fitur ..."
+                    >
+                </div>
+            </div>
+            <div class="form-group filter-field-search">
+                <label for="search" class="form-label">Tanggal Mulai</label>
+                <div>
+                    <input
+                        id="start_at"
+                        name="start_at"
+                        type="date"
+                        class="form-input"
+                        value="{{ start_at }}"
+                        placeholder="Tanggal Mulai ..."
+                    >
+                </div>
+            </div>
+            <div class="form-group filter-field-search">
+                <label for="search" class="form-label">Tanggal Selesai</label>
+                <div>
+                    <input
+                        id="end_at"
+                        name="end_at"
+                        type="date"
+                        class="form-input"
+                        value="{{ end_at }}"
+                        placeholder="Tanggal Selesai ..."
+                    >
+                </div>
+            </div>
+
+            <!-- Per Page Select -->
+            <div class="form-group">
+                <label for="per_page" class="form-label">Per Halaman</label>
+                <select
+                    id="per_page"
+                    name="per_page"
+                    class="form-select"
+                >
+                    {% for size in [10, 20, 50, 100] %}
+                    <option
+                        value="{{ size }}"
+                        {% if per_page == size %}selected{% endif %}
+                    >
+                        {{ size }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filter Buttons -->
+            <div class="filter-actions">
+                <button
+                    type="submit"
+                    class="button button-primary"
+                >
+                    <span class="fa-solid fa-sliders"></span> Terapkan
+                </button>
+
+                <a
+                    href="/audit-logs"
+                    class="button button-outline"
+                    title="Reset Filter"
+                >
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card table-card">
+
+    <!-- Card Header / Title -->
+    <div class="card-header table-card-header">
+        <div>
+            <h2 class="card-title">Data Audit</h2>
+            <p class="card-description">
+                Total <strong>{{ total }}</strong> data terdaftar dalam sistem
+            </p>
+        </div>
+    </div>
+
+    {% if logs %}
+
+    <!-- Table Wrapper -->
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Waktu</th>
+                    <th>Pengguna</th>
+                    <th>Action</th>
+                    <th>Feature</th>
+                    <th>Device</th>
+                    <th>User Agent</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                    <td>{{ log.user.full_name if log.user else 'System' }}</td>
+                    <td><span class="badge bg-info">{{ log.action }}</span></td>
+                    <td>{{ log.feature }}</td>
+                    <td>{{ log.device }}</td>
+                    <td>{{ log.user_agent }}</td>
+                    <td>{{ log.ip_address or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% else %}
+
+    <!-- Empty State -->
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <span class="fa-solid fa-user-xmark"></span>
+        </div>
+        <h3>Audit log tidak ditemukan</h3>
+        <p>
+            Tidak ada audit yang sesuai dengan kriteria filter atau pencarian Anda.
+        </p>
+        <a href="/audit-logs" class="button button-sm button-outline">
+            Reset Filter
+        </a>
+    </div>
+
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        <div class="pagination-info">
+            Menampilkan halaman <strong>{{ page }}</strong> dari <strong>{{ total_pages }}</strong>
+        </div>
+
+        <div class="pagination-controls">
+            {% if page > 1 %}
+            <a
+                class="button button-sm button-outline"
+                href="/audit-logs?page={{ page - 1 }}&per_page={{ per_page }}&full_name={{ full_name }}&action={{ action }}&feature={{ feature }}&start_at={{ start_at }}&end_at={{ end_at }}"
+            >
+                <span class="fa-solid fa-chevron-left"></span> Sebelumnya
+            </a>
+            {% else %}
+            <button class="button button-sm button-outline" disabled>
+                <span class="fa-solid fa-chevron-left"></span> Sebelumnya
+            </button>
+            {% endif %}
+
+            {% if page < total_pages %}
+            <a
+                class="button button-sm button-outline"
+                href="/audit-logs?page={{ page + 1 }}&per_page={{ per_page }}&full_name={{ full_name }}&action={{ action }}&feature={{ feature }}&start_at={{ start_at }}&end_at={{ end_at }}"
+            >
+                Berikutnya <span class="fa-solid fa-chevron-right"></span>
+            </a>
+            {% else %}
+            <button class="button button-sm button-outline" disabled>
+                Berikutnya <span class="fa-solid fa-chevron-right"></span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

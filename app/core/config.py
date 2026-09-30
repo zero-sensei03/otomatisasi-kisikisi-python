@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Tesis Evaluasi"
+    app_name: str = "KisiKisi AI"
     app_env: str = "development"
     debug: bool = True
 
@@ -12,11 +12,19 @@ class Settings(BaseSettings):
 
     database_url: str
 
-    session_cookie_name: str = "tesis_session"
-    session_max_age: int = 28800
+    storage_path: str = "storage"
+    max_upload_size: int = 10 * 1024 * 1024
+    timezone: str = "Asia/Jakarta"
 
-    storage_template_dir: str = "storage/templates"
-    storage_generated_dir: str = "storage/generated"
+    session_cookie_name: str = "kisikisi_session"
+    session_max_age: int = 8 * 60 * 60
+
+    csrf_cookie_name: str = "kisikisi_csrf"
+    csrf_max_age: int = 60 * 60
+
+    admin_email: str = "devmeifa@gmail.com"
+    admin_password: str = "MeiFaDev@123"
+    admin_name: str = "MeiFa Administrator"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -29,6 +37,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-
-
-settings = get_settings()

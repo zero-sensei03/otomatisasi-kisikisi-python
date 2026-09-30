@@ -1,0 +1,36 @@
+{% macro alert(message, type="info", title=None, dismissible=False) %}
+<div
+    class="alert alert-{{ type }}"
+    role="alert"
+>
+    <span class="alert-icon">
+        <span class="icon icon-alert"></span>
+    </span>
+
+    <div class="alert-content">
+
+        {% if title %}
+            <strong>
+                {{ title }}
+            </strong>
+        {% endif %}
+
+        <span>
+            {{ message }}
+        </span>
+
+    </div>
+
+    {% if dismissible %}
+        <button
+            type="button"
+            class="alert-close"
+            data-dismiss-alert
+            aria-label="Tutup"
+        >
+            ×
+        </button>
+    {% endif %}
+
+</div>
+{% endmacro %}

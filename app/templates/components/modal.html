@@ -1,0 +1,55 @@
+<div
+    id="{{ id }}"
+    class="modal"
+    data-modal
+    aria-hidden="true"
+>
+    <div
+        class="modal-backdrop"
+        data-modal-close
+    ></div>
+
+    <div
+        class="modal-dialog modal-{{ size | default('md') }}"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="{{ id }}-title"
+    >
+
+        <div class="modal-header">
+
+            <div>
+                <h2 id="{{ id }}-title">
+                    {{ title }}
+                </h2>
+
+                {% if description %}
+                    <p>
+                        {{ description }}
+                    </p>
+                {% endif %}
+            </div>
+
+            <button
+                type="button"
+                class="icon-button"
+                data-modal-close
+                aria-label="Tutup"
+            >
+                <span class="icon icon-close"></span>
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+            {% block modal_content %}{% endblock %}
+        </div>
+
+        {% if show_footer %}
+            <div class="modal-footer">
+                {% block modal_footer %}{% endblock %}
+            </div>
+        {% endif %}
+
+    </div>
+</div>

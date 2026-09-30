@@ -1,7 +1,7 @@
 [project]
 name = "tesis-otomatisasi-kisikisi"
 version = "0.1.0"
-description = "Add your description here"
+description = "Sistem Otomatisasi Penyusunan Kisi-Kisi dan Soal Pilihan Ganda Berbasis Template"
 readme = "README.md"
 authors = [
     { name = "Zero Sensei", email = "raflinasution.mr@gmail.com" }
@@ -9,29 +9,25 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.0",
-    "docxtpl>=0.20.2",
-    "fastapi[standard]>=0.141.1",
+    "argon2-cffi>=25.1.0",
+    "email-validator>=2.3.0",
+    "fastapi>=0.142.1",
+    "httpx>=0.28.1",
     "itsdangerous>=2.2.0",
     "jinja2>=3.1.6",
     "psycopg[binary]>=3.3.6",
-    "pwdlib[argon2]>=0.3.1",
     "pydantic-settings>=2.15.0",
-    "python-docx>=1.2.0",
     "python-multipart>=0.0.32",
     "sqlalchemy>=2.1.1",
     "uvicorn[standard]>=0.54.0",
 ]
 
-[project.scripts]
-tesis-otomatisasi-kisikisi = "tesis_otomatisasi_kisikisi:main"
-
-[build-system]
-requires = ["uv_build>=0.12.19,<0.13.0"]
-build-backend = "uv_build"
-
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "pytest>=9.1.1",
-    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.9",
 ]
+
+[tool.uv]
+package = false

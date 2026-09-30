@@ -1,0 +1,52 @@
+<header class="top-navbar">
+
+    <a
+        href="/dashboard"
+        class="navbar-brand"
+    >
+        <span class="brand-mark">
+            K
+        </span>
+
+        <span class="navbar-brand-text">
+            KisiKisi AI
+        </span>
+    </a>
+
+    <div class="navbar-actions">
+
+        {% if current_user %}
+
+        <div class="navbar-user">
+            <div class="navbar-user-avatar">
+                {{ current_user.full_name[0]|upper }}
+            </div>
+
+            <div class="navbar-user-info">
+                <strong>
+                    {{ current_user.full_name }}
+                </strong>
+
+                <span>
+                    {{ current_user.role.value }}
+                </span>
+            </div>
+        </div>
+
+        <form
+            method="post"
+            action="/auth/logout"
+        >
+            <button
+                type="submit"
+                class="btn btn-ghost"
+            >
+                Keluar
+            </button>
+        </form>
+
+        {% endif %}
+
+    </div>
+
+</header>

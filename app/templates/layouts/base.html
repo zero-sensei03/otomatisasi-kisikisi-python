@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <!-- =====================================================
+         BASIC DOCUMENT
+         ===================================================== -->
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- =====================================================
+         APPLICATION IDENTITY
+         ===================================================== -->
+
+    <title>
+        {% block title %}
+        Otomatisasi Kisi-Kisi & Pembuat Soal
+        {% endblock %}
+        | Otomatisasi Kisi-Kisi
+    </title>
+    <meta name="application-name" content="Otomatisasi Kisi-Kisi">
+    <meta name="apple-mobile-web-app-title" content="Otomatisasi Kisi-Kisi">
+    <meta name="description" content="Platform AI pendidikan untuk mengotomatisasi penyusunan kisi-kisi dan pembuatan soal berdasarkan materi, mata pelajaran, kelas, dan kebutuhan pembelajaran.">
+    <meta name="keywords" content="otomatisasi kisi-kisi, pembuat soal, generator soal, kisi-kisi soal, soal AI, AI pendidikan, pembuat soal AI, sistem pendidikan">
+    <meta name="author" content="Otomatisasi Kisi-Kisi">
+    <meta name="generator" content="Otomatisasi Kisi-Kisi">
+
+    <!-- =====================================================
+         SEARCH ENGINE / PRIVACY
+         ===================================================== -->
+
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
+    <!-- =====================================================
+         THEME / BRAND
+         ===================================================== -->
+
+    <meta name="theme-color" content="#b88932">
+    <meta name="color-scheme" content="light">
+    <meta name="msapplication-TileColor" content="#b88932">
+
+    <!-- =====================================================
+         FAVICON
+         ===================================================== -->
+
+    <link rel="icon" type="image/png" href="{{ url_for('static', path='images/logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ url_for('static', path='images/logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', path='images/logo.png') }}">
+
+    <!-- =====================================================
+         OPEN GRAPH
+         ===================================================== -->
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Otomatisasi Kisi-Kisi">
+    <meta property="og:title" content="Otomatisasi Kisi-Kisi & Pembuat Soal">
+    <meta property="og:description" content="Platform AI pendidikan untuk mengotomatisasi penyusunan kisi-kisi dan pembuatan soal secara terstruktur dan efisien.">
+    <meta property="og:image" content="{{ url_for('static', path='images/logo.png') }}">
+    <meta property="og:image:alt" content="Otomatisasi Kisi-Kisi & Pembuat Soal">
+    <meta property="og:locale" content="id_ID">
+
+    <!-- =====================================================
+         TWITTER / X
+         ===================================================== -->
+
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Otomatisasi Kisi-Kisi & Pembuat Soal">
+    <meta name="twitter:description" content="Platform AI pendidikan untuk mengotomatisasi penyusunan kisi-kisi dan pembuatan soal.">
+    <meta name="twitter:image" content="{{ url_for('static', path='images/logo.png') }}">
+    <meta name="twitter:image:alt" content="Otomatisasi Kisi-Kisi & Pembuat Soal">
+
+    <!-- =====================================================
+         STYLING
+         ===================================================== -->
+    <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+    <div class="app-shell">
+
+        {% include "components/sidebar.html" %}
+
+        <div class="app-main">
+
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button
+                        type="button"
+                        class="icon-button mobile-menu-button"
+                        data-sidebar-toggle
+                        aria-label="Buka menu"
+                        aria-expanded="false"
+                    >
+                        <span class="fa-solid fa-bars"></span>
+                    </button>
+
+                    <div class="topbar-title">
+                        {% block topbar_title %}
+                        Dashboard
+                        {% endblock %}
+                    </div>
+                </div>
+
+                <div class="topbar-actions">
+                    <div class="user-menu">
+                        <button
+                            type="button"
+                            class="user-menu-trigger"
+                            style="padding: 4px 12px !important;"
+                            data-dropdown-trigger="user-dropdown"
+                            aria-expanded="false"
+                        >
+                        
+                            {% if current_user %}
+                            <span class="avatar avatar-sm">
+                                {{ current_user.full_name[0]|upper }}
+                            </span>
+                            <span class="user-menu-info">
+                                <strong>{{ current_user.full_name }}</strong>
+                                <small>{{ current_user.role.value }}</small>
+                            </span>
+                            {% else %}
+                            <span class="avatar avatar-sm">
+                                G
+                            </span>
+                            <span class="user-menu-info">
+                                <strong>User</strong>
+                                <small>Guest</small>
+                            </span>
+                            {% endif %}
+                        </button>
+
+                        <div
+                            id="user-dropdown"
+                            class="dropdown-menu"
+                            data-dropdown
+                        >
+                            <a href="/profile" class="dropdown-item">
+                                <span class="fa-solid fa-user"></span>
+                                Profil
+                            </a>
+
+                            <div class="dropdown-divider"></div>
+
+                            <form
+                                method="post"
+                                action="/auth/logout"
+                                class="logout-form"
+                            >
+                                <button
+                                    type="submit"
+                                    class="button button-danger button-md"
+                                    style="width: 100%;"
+                                >
+                                    <span class="fa-solid fa-power-off"></span>
+                                    Keluar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="page-content">
+                <div class="container">
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+
+        </div>
+    </div>
+
+    <div
+        class="sidebar-overlay"
+        data-sidebar-overlay
+    ></div>
+
+    {% block modals %}{% endblock %}
+
+    <script
+        src="{{ url_for('static', path='js/app.js') }}"
+    ></script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

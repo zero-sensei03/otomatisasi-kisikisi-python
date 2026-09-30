@@ -3,21 +3,27 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.core.database import Base
-from app.models import User
+
+import app.models.user
+import app.models.teacher
+import app.models.user_session
+import app.models.audit_log
+
+settings = get_settings()
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+target_metadata = Base.metadata
+
 config.set_main_option(
     "sqlalchemy.url",
-    settings.database_url.replace("%", "%%"),
+    settings.database_url,
 )
-
-target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
@@ -37,13 +43,8 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    configuration = config.get_section(
-        config.config_ini_section,
-        {},
-    )
-
     connectable = engine_from_config(
-        configuration,
+        config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

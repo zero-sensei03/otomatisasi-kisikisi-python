@@ -1,0 +1,36 @@
+<div class="table-wrapper">
+    <table class="data-table">
+        <thead>
+            <tr>
+                {% for column in columns %}
+                    <th>
+                        {{ column }}
+                    </th>
+                {% endfor %}
+            </tr>
+        </thead>
+
+        <tbody>
+            {% if rows %}
+                {% for row in rows %}
+                    <tr>
+                        {% for cell in row %}
+                            <td>
+                                {{ cell }}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td
+                        colspan="{{ columns|length }}"
+                        class="table-empty"
+                    >
+                        Belum ada data.
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>

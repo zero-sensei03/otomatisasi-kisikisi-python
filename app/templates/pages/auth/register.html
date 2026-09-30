@@ -1,0 +1,159 @@
+{% extends "layouts/auth-base.html" %}
+
+{% block title %}Daftar Guru{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+    <div class="auth-card auth-card-wide">
+
+        <div class="auth-brand">
+            <div class="brand-mark">K</div>
+
+            <div>
+                <div class="brand-name">
+                    KisiKisi AI
+                </div>
+
+                <div class="brand-subtitle">
+                    Sistem Otomatisasi Evaluasi
+                </div>
+            </div>
+        </div>
+
+        <div class="auth-heading">
+            <h1>Buat akun Guru</h1>
+
+            <p>
+                Daftarkan akun untuk mulai mengelola
+                materi dan evaluasi.
+            </p>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-error">
+            <div class="alert-content">
+                <strong>Registrasi gagal</strong>
+                <span>{{ error }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <form
+            method="post"
+            action="/auth/register"
+            class="form-stack"
+        >
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token }}"
+            >
+
+            <input
+                type="hidden"
+                name="csrf_signature"
+                value="{{ csrf_signature }}"
+            >
+
+            <div class="form-field">
+                <label for="full_name">
+                    Nama lengkap
+                </label>
+
+                <input
+                    id="full_name"
+                    name="full_name"
+                    type="text"
+                    value="{{ full_name or '' }}"
+                    autocomplete="name"
+                    required
+                    placeholder="Nama lengkap"
+                >
+            </div>
+
+            <div class="form-field">
+                <label for="email">
+                    Email
+                </label>
+
+                <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value="{{ email or '' }}"
+                    autocomplete="email"
+                    required
+                    placeholder="nama@email.com"
+                >
+            </div>
+
+            <div class="form-field">
+                <label for="nip">
+                    NIP
+                    <span class="form-label-muted">
+                        Opsional
+                    </span>
+                </label>
+
+                <input
+                    id="nip"
+                    name="nip"
+                    type="text"
+                    value="{{ nip or '' }}"
+                    placeholder="Nomor Induk Pegawai"
+                >
+            </div>
+
+            <div class="form-grid form-grid-2">
+                <div class="form-field">
+                    <label for="password">
+                        Password
+                    </label>
+
+                    <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        autocomplete="new-password"
+                        minlength="8"
+                        required
+                        placeholder="Minimal 8 karakter"
+                    >
+                </div>
+
+                <div class="form-field">
+                    <label for="password_confirmation">
+                        Konfirmasi password
+                    </label>
+
+                    <input
+                        id="password_confirmation"
+                        name="password_confirmation"
+                        type="password"
+                        autocomplete="new-password"
+                        minlength="8"
+                        required
+                        placeholder="Ulangi password"
+                    >
+                </div>
+            </div>
+
+            <button
+                type="submit"
+                class="btn btn-primary btn-lg btn-block"
+            >
+                Buat Akun
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <span>Sudah memiliki akun?</span>
+
+            <a href="/auth/login">
+                Masuk
+            </a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

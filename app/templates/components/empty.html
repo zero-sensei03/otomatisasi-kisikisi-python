@@ -1,0 +1,21 @@
+<div class="empty-state">
+
+    <div class="empty-icon">
+        <span class="icon icon-inbox"></span>
+    </div>
+
+    <h3>
+        {{ title | default("Belum ada data") }}
+    </h3>
+
+    <p>
+        {{ description | default("Belum terdapat data untuk ditampilkan.") }}
+    </p>
+
+    {% if action %}
+        <div class="empty-action">
+            {{ action | safe }}
+        </div>
+    {% endif %}
+
+</div>

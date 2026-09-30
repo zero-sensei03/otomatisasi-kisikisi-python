@@ -1,51 +1,128 @@
+from __future__ import annotations
+
+import hashlib
+import hmac
 import secrets
 
-from fastapi import HTTPException, Request, status
-from pwdlib import PasswordHash
+from argon2 import PasswordHasher
+from argon2.exceptions import (
+    InvalidHashError,
+    VerificationError,
+    VerifyMismatchError,
+)
+
+from app.core.config import get_settings
 
 
-password_hash = PasswordHash.recommended()
+password_hasher = PasswordHasher(
+    time_cost=3,
+    memory_cost=65536,
+    parallelism=4,
+)
 
 
 def hash_password(password: str) -> str:
-    return password_hash.hash(password)
+    return password_hasher.hash(password)
 
 
-def verify_password(password: str, hashed_password: str) -> bool:
-    return password_hash.verify(password, hashed_password)
-
-
-def get_csrf_token(request: Request) -> str:
-    token = request.session.get("csrf_token")
-
-    if not token:
-        token = secrets.token_urlsafe(32)
-        request.session["csrf_token"] = token
-
-    return token
-
-
-def validate_csrf_token(request: Request, token: str) -> None:
-    session_token = request.session.get("csrf_token")
-
-    if not session_token or not secrets.compare_digest(
-        session_token,
-        token,
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid CSRF token",
+def verify_password(
+    password: str,
+    password_hash: str,
+) -> bool:
+    try:
+        return password_hasher.verify(
+            password_hash,
+            password,
         )
+    except (
+        VerifyMismatchError,
+        VerificationError,
+        InvalidHashError,
+    ):
+        return False
 
 
-def login_user(request: Request, user_id: int) -> None:
-    csrf_token = get_csrf_token(request)
-
-    request.session.clear()
-
-    request.session["user_id"] = user_id
-    request.session["csrf_token"] = csrf_token
+def generate_token() -> str:
+    return secrets.token_urlsafe(48)
 
 
-def logout_user(request: Request) -> None:
-    request.session.clear()
+def hash_token(token: str) -> str:
+    return hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+
+
+def generate_csrf_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def sign_csrf_token(token: str) -> str:
+    settings = get_settings()
+
+    return hmac.new(
+        settings.secret_key.encode("utf-8"),
+        token.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def verify_csrf_token(
+    token: str,
+    signature: str,
+) -> bool:
+    expected = sign_csrf_token(token)
+
+    return hmac.compare_digest(
+        expected,
+        signature,
+    )
+
+
+def generate_session_csrf_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_csrf_token(token: str) -> str:
+    return hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+
+
+def verify_csrf_hash(
+    token: str,
+    token_hash: str,
+) -> bool:
+    return hmac.compare_digest(
+        hash_csrf_token(token),
+        token_hash,
+    )
+
+
+def detect_device(user_agent: str | None) -> str:
+    if not user_agent:
+        return "Unknown Device"
+
+    value = user_agent.lower()
+
+    if "ipad" in value:
+        return "iPad"
+
+    if "iphone" in value:
+        return "iPhone"
+
+    if "android" in value:
+        if "mobile" in value:
+            return "Android Mobile"
+
+        return "Android Tablet"
+
+    if "windows" in value:
+        return "Windows PC"
+
+    if "macintosh" in value:
+        return "Mac"
+
+    if "linux" in value:
+        return "Linux PC"
+
+    return "Unknown Device"

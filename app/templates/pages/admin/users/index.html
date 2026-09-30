@@ -1,0 +1,385 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}
+Manajemen User
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-content">
+        <div class="page-header-heading">
+            <div class="breadcrumb">
+                <a href="/dashboard" class="breadcrumb-link">Dashboard</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-current">User</span>
+            </div>
+
+            <h1>Manajemen User</h1>
+            <p class="page-description">
+                Kelola seluruh akun pengguna sistem, termasuk Admin dan Guru.
+            </p>
+        </div>
+
+        <div class="page-header-actions">
+            <a
+                href="/users/create"
+                class="button button-primary"
+            >
+                + Tambah User
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if success %}
+<div class="alert alert-success" style="margin-bottom: 12px;">
+    <div class="alert-content">
+        {{ success }}
+    </div>
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-danger" style="margin-bottom: 12px;">
+    <div class="alert-content">
+        {{ error }}
+    </div>
+</div>
+{% endif %}
+
+<div class="card filter-card">
+    <div class="card-header filter-header">
+        <h3 class="card-title">
+            <span class="fa-solid fa-filter"></span> Filter & Pencarian
+        </h3>
+    </div>
+
+    <div class="card-body">
+        <form
+            method="get"
+            action="/users"
+            class="filter-grid"
+        >
+            <!-- Search Field -->
+            <div class="form-group filter-field-search">
+                <label for="search" class="form-label">Cari User</label>
+                <div class="input-icon-wrapper">
+                    <span class="fa-solid fa-magnifying-glass input-icon"></span>
+                    <input
+                        id="search"
+                        name="search"
+                        type="search"
+                        class="form-input with-icon"
+                        value="{{ search }}"
+                        placeholder="Nama atau email..."
+                    >
+                </div>
+            </div>
+
+            <!-- Role Select -->
+            <div class="form-group">
+                <label for="role" class="form-label">Role</label>
+                <select
+                    id="role"
+                    name="role"
+                    class="form-select"
+                >
+                    <option value="">Semua Role</option>
+                    {% for item in roles %}
+                    <option
+                        value="{{ item.value }}"
+                        {% if role == item.value %}selected{% endif %}
+                    >
+                        {{ item.value }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Status Select -->
+            <div class="form-group">
+                <label for="status" class="form-label">Status</label>
+                <select
+                    id="status"
+                    name="status"
+                    class="form-select"
+                >
+                    <option value="">Semua Status</option>
+                    <option
+                        value="active"
+                        {% if status == "active" %}selected{% endif %}
+                    >
+                        Aktif
+                    </option>
+                    <option
+                        value="inactive"
+                        {% if status == "inactive" %}selected{% endif %}
+                    >
+                        Tidak Aktif
+                    </option>
+                </select>
+            </div>
+
+            <!-- Per Page Select -->
+            <div class="form-group">
+                <label for="per_page" class="form-label">Per Halaman</label>
+                <select
+                    id="per_page"
+                    name="per_page"
+                    class="form-select"
+                >
+                    {% for size in [10, 20, 50, 100] %}
+                    <option
+                        value="{{ size }}"
+                        {% if per_page == size %}selected{% endif %}
+                    >
+                        {{ size }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filter Buttons -->
+            <div class="filter-actions">
+                <button
+                    type="submit"
+                    class="button button-primary"
+                >
+                    <span class="fa-solid fa-sliders"></span> Terapkan
+                </button>
+
+                <a
+                    href="/users"
+                    class="button button-outline"
+                    title="Reset Filter"
+                >
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="card table-card">
+
+    <!-- Card Header / Title -->
+    <div class="card-header table-card-header">
+        <div>
+            <h2 class="card-title">Daftar User</h2>
+            <p class="card-description">
+                Total <strong>{{ total }}</strong> user terdaftar dalam sistem
+            </p>
+        </div>
+    </div>
+
+    {% if users %}
+
+    <!-- Table Wrapper -->
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>NIP</th>
+                    <th class="text-right">Aksi</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>
+                        <div class="user-info-cell">
+                            <div class="avatar avatar-sm">
+                                {{ user.full_name[0]|upper }}
+                            </div>
+                            <div class="user-info-text">
+                                <strong class="user-name">{{ user.full_name }}</strong>
+                                <span class="user-email">{{ user.email }}</span>
+                            </div>
+                        </div>
+                    </td>
+
+                    <td>
+                        <span class="badge badge-neutral">
+                            {{ user.role.value }}
+                        </span>
+                    </td>
+
+                    <td>
+                        {% if user.is_active %}
+                        <span class="badge badge-success">
+                            <span class="badge-dot"></span> Aktif
+                        </span>
+                        {% else %}
+                        <span class="badge badge-danger">
+                            <span class="badge-dot"></span> Tidak Aktif
+                        </span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        <span class="nip-text">
+                            {% if user.teacher %}
+                                {{ user.teacher.nip or "-" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </span>
+                    </td>
+
+                    <td>
+                        <div class="table-actions">
+
+                            <a
+                                href="/users/{{ user.id }}/edit"
+                                class="button button-sm button-outline"
+                                title="Edit User"
+                            >
+                                <span class="fa-solid fa-pen-to-square"></span>
+                                Edit
+                            </a>
+
+                            <a
+                                href="/users/{{ user.id }}/password"
+                                class="button button-sm button-ghost"
+                                title="Ubah Password"
+                            >
+                                <span class="fa-solid fa-key"></span>
+                                Password
+                            </a>
+
+                            {% if user.id != current_user.id and user.email != "devmeifa@gmail.com" %}
+
+                            <form
+                                method="post"
+                                action="/users/{{ user.id }}/status"
+                                class="inline-form"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="csrf_token"
+                                    value="{{ csrf_token }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="csrf_signature"
+                                    value="{{ csrf_signature }}"
+                                >
+                                <input
+                                    type="hidden"
+                                    name="is_active"
+                                    value="{% if user.is_active %}false{% else %}true{% endif %}"
+                                >
+
+                                <button
+                                    type="submit"
+                                    class="button button-sm button-ghost"
+                                >
+                                    {% if user.is_active %}
+                                        <span class="fa-solid fa-user-slash"></span> Nonaktifkan
+                                    {% else %}
+                                        <span class="fa-solid fa-user-check"></span> Aktifkan
+                                    {% endif %}
+                                </button>
+                            </form>
+
+                            <form
+                                method="post"
+                                action="/users/{{ user.id }}/delete"
+                                onsubmit="return confirm('Hapus user ini? Data user akan dihapus dari sistem.')"
+                                class="inline-form"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="csrf_token"
+                                    value="{{ csrf_token }}"
+                                >
+
+                                <input
+                                    type="hidden"
+                                    name="csrf_signature"
+                                    value="{{ csrf_signature }}"
+                                >
+
+                                <button
+                                    type="submit"
+                                    class="button button-sm button-danger-ghost"
+                                    title="Hapus User"
+                                >
+                                    <span class="fa-solid fa-trash"></span>
+                                    Hapus
+                                </button>
+                            </form>
+
+                            {% endif %}
+
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% else %}
+
+    <!-- Empty State -->
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <span class="fa-solid fa-user-xmark"></span>
+        </div>
+        <h3>User tidak ditemukan</h3>
+        <p>
+            Tidak ada user yang sesuai dengan kriteria filter atau pencarian Anda.
+        </p>
+        <a href="/users" class="button button-sm button-outline">
+            Reset Filter
+        </a>
+    </div>
+
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        <div class="pagination-info">
+            Menampilkan halaman <strong>{{ page }}</strong> dari <strong>{{ total_pages }}</strong>
+        </div>
+
+        <div class="pagination-controls">
+            {% if page > 1 %}
+            <a
+                class="button button-sm button-outline"
+                href="/users?page={{ page - 1 }}&per_page={{ per_page }}&search={{ search }}&role={{ role }}&status={{ status }}"
+            >
+                <span class="fa-solid fa-chevron-left"></span> Sebelumnya
+            </a>
+            {% else %}
+            <button class="button button-sm button-outline" disabled>
+                <span class="fa-solid fa-chevron-left"></span> Sebelumnya
+            </button>
+            {% endif %}
+
+            {% if page < total_pages %}
+            <a
+                class="button button-sm button-outline"
+                href="/users?page={{ page + 1 }}&per_page={{ per_page }}&search={{ search }}&role={{ role }}&status={{ status }}"
+            >
+                Berikutnya <span class="fa-solid fa-chevron-right"></span>
+            </a>
+            {% else %}
+            <button class="button button-sm button-outline" disabled>
+                Berikutnya <span class="fa-solid fa-chevron-right"></span>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

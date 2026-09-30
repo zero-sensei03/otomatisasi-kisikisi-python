@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <!-- =====================================================
+         BASIC DOCUMENT
+         ===================================================== -->
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+    <!-- =====================================================
+         APPLICATION IDENTITY
+         ===================================================== -->
+
+    <title>
+        {% block title %}
+        Otomatisasi Kisi-Kisi & Pembuat Soal
+        {% endblock %}
+        | Otomatisasi Kisi-Kisi
+    </title>
+    <meta name="application-name" content="Otomatisasi Kisi-Kisi">
+    <meta name="apple-mobile-web-app-title" content="Otomatisasi Kisi-Kisi">
+    <meta name="description" content="Platform AI pendidikan untuk mengotomatisasi penyusunan kisi-kisi dan pembuatan soal berdasarkan materi, mata pelajaran, kelas, dan kebutuhan pembelajaran.">
+    <meta name="keywords" content="otomatisasi kisi-kisi, pembuat soal, generator soal, kisi-kisi soal, soal AI, AI pendidikan, pembuat soal AI, sistem pendidikan">
+    <meta name="author" content="Otomatisasi Kisi-Kisi">
+    <meta name="generator" content="Otomatisasi Kisi-Kisi">
+
+    <!-- =====================================================
+         SEARCH ENGINE / PRIVACY
+         ===================================================== -->
+
+    <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+
+    <!-- =====================================================
+         THEME / BRAND
+         ===================================================== -->
+
+    <meta name="theme-color" content="#b88932">
+    <meta name="color-scheme" content="light">
+    <meta name="msapplication-TileColor" content="#b88932">
+
+    <!-- =====================================================
+         FAVICON
+         ===================================================== -->
+
+    <link rel="icon" type="image/png" href="{{ url_for('static', path='images/logo.png') }}">
+    <link rel="shortcut icon" type="image/png" href="{{ url_for('static', path='images/logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', path='images/logo.png') }}">
+
+    <!-- =====================================================
+         OPEN GRAPH
+         ===================================================== -->
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Otomatisasi Kisi-Kisi">
+    <meta property="og:title" content="Otomatisasi Kisi-Kisi & Pembuat Soal">
+    <meta property="og:description" content="Platform AI pendidikan untuk mengotomatisasi penyusunan kisi-kisi dan pembuatan soal secara terstruktur dan efisien.">
+    <meta property="og:image" content="{{ url_for('static', path='images/logo.png') }}">
+    <meta property="og:image:alt" content="Otomatisasi Kisi-Kisi & Pembuat Soal">
+    <meta property="og:locale" content="id_ID">
+
+    <!-- =====================================================
+         TWITTER / X
+         ===================================================== -->
+
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Otomatisasi Kisi-Kisi & Pembuat Soal">
+    <meta name="twitter:description" content="Platform AI pendidikan untuk mengotomatisasi penyusunan kisi-kisi dan pembuatan soal.">
+    <meta name="twitter:image" content="{{ url_for('static', path='images/logo.png') }}">
+    <meta name="twitter:image:alt" content="Otomatisasi Kisi-Kisi & Pembuat Soal">
+
+    <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
+
+    <style>
+        :root {
+            --color-primary: #b88932;
+            --color-primary-hover: #9d7427;
+            --color-primary-soft: #f6eddc;
+
+            --color-background: #f7f7f5;
+            --color-surface: #ffffff;
+            --color-surface-muted: #f2f2ef;
+
+            --color-text: #20201e;
+            --color-text-secondary: #66655f;
+            --color-text-muted: #8a8982;
+
+            --color-border: #e5e3dd;
+            --color-border-strong: #d5d2ca;
+
+            --color-success: #287a52;
+            --color-success-soft: #e8f5ed;
+
+            --color-warning: #9a6a12;
+            --color-warning-soft: #fff5dd;
+
+            --color-danger: #b33a3a;
+            --color-danger-soft: #fdecec;
+
+            --color-info: #536b7a;
+            --color-info-soft: #edf2f5;
+
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --radius-xl: 18px;
+
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.10);
+
+            --transition: 160ms ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            line-height: 1.5;
+        }
+
+        /* Container Layout Auth */
+        .auth-page {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .auth-card {
+            background-color: var(--color-surface);
+            width: 100%;
+            max-width: 440px;
+            padding: 2.25rem;
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--color-border);
+            box-shadow: var(--shadow-lg);
+            transition: var(--transition);
+        }
+
+        .auth-card-wide {
+            max-width: 560px;
+        }
+
+        /* Branding Header */
+        .auth-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            margin-bottom: 2rem;
+        }
+
+        .brand-mark {
+            width: 2.75rem;
+            height: 2.75rem;
+            background-color: var(--color-primary);
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 1.25rem;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .brand-name {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--color-text);
+            line-height: 1.2;
+        }
+
+        .brand-subtitle {
+            font-size: 0.8125rem;
+            color: var(--color-text-secondary);
+        }
+
+        /* Heading Text */
+        .auth-heading {
+            margin-bottom: 1.5rem;
+        }
+
+        .auth-heading h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-text);
+            letter-spacing: -0.02em;
+            margin-bottom: 0.375rem;
+        }
+
+        .auth-heading p {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+
+        /* Alert Notification */
+        .alert {
+            padding: 0.875rem 1rem;
+            border-radius: var(--radius-md);
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid transparent;
+        }
+
+        .alert-error {
+            background-color: var(--color-danger-soft);
+            color: var(--color-danger);
+            border-color: rgba(179, 58, 58, 0.2);
+        }
+
+        .alert-success {
+            background-color: var(--color-success-soft);
+            color: var(--color-success);
+            border-color: rgba(40, 122, 82, 0.2);
+        }
+
+        .alert-content strong {
+            display: block;
+            font-weight: 600;
+        }
+
+        .alert-content span {
+            font-size: 0.8125rem;
+        }
+
+        /* Form Controls & Layout */
+        .form-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .form-grid {
+            display: grid;
+            gap: 1.25rem;
+        }
+
+        @media (min-width: 640px) {
+            .form-grid-2 {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+        }
+
+        .form-field label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--color-text);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .form-label-muted {
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+            font-weight: 400;
+        }
+
+        .form-field input {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-border);
+            background-color: var(--color-surface);
+            font-size: 0.875rem;
+            color: var(--color-text);
+            outline: none;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .form-field input:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-primary-soft);
+        }
+
+        .form-field input::placeholder {
+            color: var(--color-text-muted);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            border: none;
+            transition: var(--transition);
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: #ffffff;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-primary-hover);
+        }
+
+        .btn-lg {
+            padding: 0.75rem 1.25rem;
+            font-size: 0.9375rem;
+        }
+
+        .btn-block {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        /* Footer Link */
+        .auth-footer {
+            margin-top: 2rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--color-border);
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            display: flex;
+            justify-content: center;
+            gap: 0.375rem;
+        }
+
+        .auth-footer a {
+            color: var(--color-primary);
+            font-weight: 600;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .auth-footer a:hover {
+            color: var(--color-primary-hover);
+            text-decoration: underline;
+        }
+    </style>
+
+    {% block head %}{% endblock %}
+</head>
+<body>
+
+    {% block content %}{% endblock %}
+
+    <script src="{{ url_for('static', path='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

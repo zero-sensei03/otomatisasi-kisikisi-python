@@ -1,0 +1,318 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}
+Edit User
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-content">
+        <div class="page-header-heading">
+
+            <div class="breadcrumb">
+                <a
+                    href="/dashboard"
+                    class="breadcrumb-link"
+                >
+                    Dashboard
+                </a>
+
+                <span class="breadcrumb-separator">/</span>
+
+                <a
+                    href="/users"
+                    class="breadcrumb-link"
+                >
+                    User
+                </a>
+
+                <span class="breadcrumb-separator">/</span>
+
+                <span class="breadcrumb-current">
+                    Edit
+                </span>
+            </div>
+
+            <h1>Edit User</h1>
+
+            <p>
+                Perbarui informasi dan status akun pengguna.
+            </p>
+
+        </div>
+    </div>
+</div>
+
+
+{% if error %}
+<div class="alert alert-danger">
+    <div class="alert-content">
+        <span>{{ error }}</span>
+    </div>
+</div>
+{% endif %}
+
+
+<div class="card user-form-card">
+
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">
+                Informasi Pengguna
+            </h2>
+
+            <p class="card-description">
+                Perbarui informasi dasar, role, dan status akun pengguna.
+            </p>
+        </div>
+    </div>
+
+
+    <div class="card-body">
+
+        <form
+            method="post"
+            action="/users/{{ user.id }}/edit"
+            class="user-form"
+        >
+
+            <!-- CSRF Protection -->
+            <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token }}"
+            >
+
+            <input
+                type="hidden"
+                name="csrf_signature"
+                value="{{ csrf_signature }}"
+            >
+
+
+            <div class="form-grid">
+
+                <!-- Nama Lengkap -->
+                <div class="form-group">
+
+                    <label
+                        for="full_name"
+                        class="form-label"
+                    >
+                        Nama Lengkap
+                        <span class="required">*</span>
+                    </label>
+
+                    <input
+                        id="full_name"
+                        name="full_name"
+                        type="text"
+                        class="form-input"
+                        required
+                        autocomplete="name"
+                        value="{{ user.full_name }}"
+                        placeholder="Masukkan nama lengkap"
+                    >
+
+                </div>
+
+
+                <!-- Email -->
+                <div class="form-group">
+
+                    <label
+                        for="email"
+                        class="form-label"
+                    >
+                        Email
+                        <span class="required">*</span>
+                    </label>
+
+                    <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        class="form-input"
+                        required
+                        autocomplete="email"
+                        value="{{ user.email }}"
+                        placeholder="contoh@email.com"
+                    >
+
+                </div>
+
+
+                <!-- Role -->
+                <div class="form-group">
+
+                    <label
+                        for="role"
+                        class="form-label"
+                    >
+                        Role
+                        <span class="required">*</span>
+                    </label>
+
+                    <select
+                        id="role"
+                        name="role"
+                        class="form-select"
+                        required
+                        data-role-select
+                    >
+
+                        {% for item in roles %}
+
+                        <option
+                            value="{{ item.value }}"
+                            {% if user.role.value == item.value %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ item.value }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                    <p class="form-help">
+                        Role menentukan hak akses pengguna dalam sistem.
+                    </p>
+
+                </div>
+
+
+                <!-- NIP -->
+                <div
+                    class="form-group"
+                    data-nip-field
+                >
+
+                    <label
+                        for="nip"
+                        class="form-label"
+                    >
+                        NIP
+                    </label>
+
+                    <input
+                        id="nip"
+                        name="nip"
+                        type="text"
+                        class="form-input"
+                        value="{{ user.teacher.nip if user.teacher and user.teacher.nip else '' }}"
+                        placeholder="Masukkan NIP Guru"
+                        autocomplete="off"
+                    >
+
+                    <p class="form-help">
+                        NIP digunakan untuk pengguna dengan role Guru.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- Status Akun -->
+            <div class="form-section">
+
+                <div class="form-section-title">
+                    Status Akun
+                </div>
+
+                <label class="checkbox-wrapper">
+
+                    <input
+                        type="checkbox"
+                        name="is_active"
+                        value="true"
+                        {% if user.is_active %}
+                            checked
+                        {% endif %}
+                    >
+
+                    <span class="checkbox-custom"></span>
+
+                    <span class="checkbox-content">
+
+                        <strong>
+                            User aktif
+                        </strong>
+
+                        <small>
+                            User dapat login dan menggunakan sistem
+                            ketika akun dalam keadaan aktif.
+                        </small>
+
+                    </span>
+
+                </label>
+
+            </div>
+
+
+            <!-- Actions -->
+            <div class="form-actions">
+
+                <a
+                    href="/users"
+                    class="button button-ghost"
+                >
+                    Batal
+                </a>
+
+                <button
+                    type="submit"
+                    class="button button-primary"
+                >
+                    Simpan Perubahan
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const roleSelect = document.querySelector(
+        "[data-role-select]"
+    );
+
+    const nipField = document.querySelector(
+        "[data-nip-field]"
+    );
+
+    const nipInput = document.querySelector(
+        "#nip"
+    );
+
+    if (!roleSelect || !nipField || !nipInput) {
+        return;
+    }
+
+    function updateNipField() {
+        const isGuru =
+            roleSelect.value === "GURU";
+
+        nipField.hidden = !isGuru;
+        nipInput.required = isGuru;
+    }
+
+    roleSelect.addEventListener(
+        "change",
+        updateNipField
+    );
+
+    updateNipField();
+});
+</script>
+
+{% endblock %}

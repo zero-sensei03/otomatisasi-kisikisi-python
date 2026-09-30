@@ -1,0 +1,29 @@
+<div class="page-header">
+
+    <div class="page-header-content">
+        <div class="page-header-heading">
+
+            {% if breadcrumb %}
+                {% include "components/breadcrumbs.html" %}
+            {% endif %}
+
+            <h1>
+                {{ page_title }}
+            </h1>
+
+            {% if page_description %}
+                <p>
+                    {{ page_description }}
+                </p>
+            {% endif %}
+        </div>
+
+        {% if page_actions %}
+            <div class="page-header-actions">
+                {{ page_actions | safe }}
+            </div>
+        {% endif %}
+
+    </div>
+
+</div>

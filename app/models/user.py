@@ -1,31 +1,35 @@
-from datetime import datetime
-from enum import Enum
+from __future__ import annotations
 
-from sqlalchemy import Boolean, DateTime, Enum as SQLEnum, String, func
+import enum
+import uuid
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, Enum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.core.database import Base
 
+from app.models.base import (
+    TimestampMixin,
+    UUIDPrimaryKeyMixin,
+)
 
-class UserRole(str, Enum):
+if TYPE_CHECKING:
+    from app.models.audit_log import AuditLog
+    from app.models.teacher import Teacher
+    from app.models.user_session import UserSession
+
+
+class UserRole(str, enum.Enum):
     ADMIN = "ADMIN"
     GURU = "GURU"
 
 
-class User(Base):
+class User(
+    UUIDPrimaryKeyMixin,
+    TimestampMixin,
+    Base,
+):
     __tablename__ = "users"
-
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-
-    username: Mapped[str] = mapped_column(
-        String(50),
-        unique=True,
-        nullable=False,
-        index=True,
-    )
 
     email: Mapped[str] = mapped_column(
         String(255),
@@ -34,44 +38,47 @@ class User(Base):
         index=True,
     )
 
-    password_hash: Mapped[str] = mapped_column(
-        String(255),
-        nullable=False,
-    )
-
     full_name: Mapped[str] = mapped_column(
         String(150),
         nullable=False,
     )
 
+    password_hash: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
     role: Mapped[UserRole] = mapped_column(
-        SQLEnum(UserRole, name="user_role"),
+        Enum(
+            UserRole,
+            name="user_role",
+        ),
         nullable=False,
         default=UserRole.GURU,
+        server_default="GURU",
     )
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
+        server_default="true",
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-    )
-
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False,
-    )
-
-    teacher = relationship(
+    teacher: Mapped["Teacher | None"] = relationship(
         "Teacher",
         back_populates="user",
         uselist=False,
         cascade="all, delete-orphan",
+    )
+
+    sessions: Mapped[list["UserSession"]] = relationship(
+        "UserSession",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    audit_logs: Mapped[list["AuditLog"]] = relationship(
+        "AuditLog",
+        back_populates="user",
     )

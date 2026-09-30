@@ -1,0 +1,164 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <div class="breadcrumb">
+            <a href="/dashboard">
+                Dashboard
+            </a>
+        </div>
+
+        <h1 class="page-title">
+            Selamat datang, {{ current_user.full_name }}
+        </h1>
+
+        <p class="page-description">
+            Kelola materi pembelajaran dan proses
+            evaluasi dari satu tempat.
+        </p>
+    </div>
+
+    <div class="page-header-actions">
+        <span class="badge badge-success">
+            {{ current_user.role.value }}
+        </span>
+    </div>
+</div>
+
+<div class="stats-grid">
+
+    <div class="card stat-card">
+        <div class="stat-label">
+            Status Akun
+        </div>
+
+        <div class="stat-value">
+            Aktif
+        </div>
+
+        <div class="stat-meta">
+            Akun dapat digunakan
+        </div>
+    </div>
+
+    <div class="card stat-card">
+        <div class="stat-label">
+            Role
+        </div>
+
+        <div class="stat-value">
+            {{ current_user.role.value }}
+        </div>
+
+        <div class="stat-meta">
+            Hak akses akun
+        </div>
+    </div>
+
+    <div class="card stat-card">
+        <div class="stat-label">
+            Email
+        </div>
+
+        <div class="stat-value stat-value-small">
+            {{ current_user.email }}
+        </div>
+
+        <div class="stat-meta">
+            Akun terverifikasi sistem
+        </div>
+    </div>
+
+</div>
+
+<div class="dashboard-grid">
+
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title">
+                    Mulai bekerja
+                </h2>
+
+                <p class="card-description">
+                    Fitur utama akan tersedia di tahap
+                    pengembangan berikutnya.
+                </p>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div class="empty-state compact">
+                <div class="empty-state-icon">
+                    ✦
+                </div>
+
+                <h3>
+                    Sistem siap digunakan
+                </h3>
+
+                <p>
+                    Authentication sudah aktif.
+                    Selanjutnya kita masuk ke Master Data.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title">
+                    Profil
+                </h2>
+
+                <p class="card-description">
+                    Informasi akun saat ini.
+                </p>
+            </div>
+        </div>
+
+        <div class="card-body">
+
+            <div class="detail-list">
+
+                <div class="detail-item">
+                    <span>Nama</span>
+                    <strong>
+                        {{ current_user.full_name }}
+                    </strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>Email</span>
+                    <strong>
+                        {{ current_user.email }}
+                    </strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>Role</span>
+                    <strong>
+                        {{ current_user.role.value }}
+                    </strong>
+                </div>
+
+                <div class="detail-item">
+                    <span>Status</span>
+                    <strong class="text-success">
+                        Aktif
+                    </strong>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

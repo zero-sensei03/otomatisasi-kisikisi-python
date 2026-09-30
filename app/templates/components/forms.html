@@ -1,0 +1,138 @@
+{% macro input(
+    name,
+    label,
+    type="text",
+    value="",
+    placeholder="",
+    required=False,
+    help_text=None,
+    error=None
+) %}
+<div class="form-group">
+
+    <label
+        class="form-label"
+        for="{{ name }}"
+    >
+        {{ label }}
+
+        {% if required %}
+            <span class="required">*</span>
+        {% endif %}
+    </label>
+
+    <input
+        id="{{ name }}"
+        name="{{ name }}"
+        type="{{ type }}"
+        value="{{ value }}"
+        placeholder="{{ placeholder }}"
+        class="form-input {% if error %}is-error{% endif %}"
+        {% if required %}required{% endif %}
+    >
+
+    {% if error %}
+        <p class="form-error">
+            {{ error }}
+        </p>
+    {% elif help_text %}
+        <p class="form-help">
+            {{ help_text }}
+        </p>
+    {% endif %}
+
+</div>
+{% endmacro %}
+
+
+{% macro textarea(
+    name,
+    label,
+    value="",
+    placeholder="",
+    rows=5,
+    required=False,
+    help_text=None,
+    error=None
+) %}
+<div class="form-group">
+
+    <label
+        class="form-label"
+        for="{{ name }}"
+    >
+        {{ label }}
+
+        {% if required %}
+            <span class="required">*</span>
+        {% endif %}
+    </label>
+
+    <textarea
+        id="{{ name }}"
+        name="{{ name }}"
+        rows="{{ rows }}"
+        placeholder="{{ placeholder }}"
+        class="form-textarea {% if error %}is-error{% endif %}"
+        {% if required %}required{% endif %}
+    >{{ value }}</textarea>
+
+    {% if error %}
+        <p class="form-error">
+            {{ error }}
+        </p>
+    {% elif help_text %}
+        <p class="form-help">
+            {{ help_text }}
+        </p>
+    {% endif %}
+
+</div>
+{% endmacro %}
+
+
+{% macro select(
+    name,
+    label,
+    options,
+    selected=None,
+    placeholder="Pilih...",
+    required=False
+) %}
+<div class="form-group">
+
+    <label
+        class="form-label"
+        for="{{ name }}"
+    >
+        {{ label }}
+
+        {% if required %}
+            <span class="required">*</span>
+        {% endif %}
+    </label>
+
+    <select
+        id="{{ name }}"
+        name="{{ name }}"
+        class="form-select"
+        {% if required %}required{% endif %}
+    >
+        <option value="">
+            {{ placeholder }}
+        </option>
+
+        {% for option in options %}
+            <option
+                value="{{ option.value }}"
+                {% if selected == option.value %}
+                    selected
+                {% endif %}
+            >
+                {{ option.label }}
+            </option>
+        {% endfor %}
+    </select>
+
+</div>
+{% endmacro %}

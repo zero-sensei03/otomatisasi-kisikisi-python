@@ -1,0 +1,37 @@
+{% macro card(title=None, description=None, class_name="") %}
+<section class="card {{ class_name }}">
+
+    {% if title or description %}
+        <div class="card-header">
+
+            <div>
+                {% if title %}
+                    <h2 class="card-title">
+                        {{ title }}
+                    </h2>
+                {% endif %}
+
+                {% if description %}
+                    <p class="card-description">
+                        {{ description }}
+                    </p>
+                {% endif %}
+            </div>
+
+            {% if caller is defined %}
+                <div class="card-header-action">
+                    {% block card_action %}{% endblock %}
+                </div>
+            {% endif %}
+
+        </div>
+    {% endif %}
+
+    <div class="card-body">
+        {% if caller is defined %}
+            {{ caller() }}
+        {% endif %}
+    </div>
+
+</section>
+{% endmacro %}

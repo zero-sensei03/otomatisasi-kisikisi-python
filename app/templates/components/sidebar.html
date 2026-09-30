@@ -1,0 +1,102 @@
+<aside class="sidebar" data-sidebar>
+    <div class="sidebar-header">
+        <a href="/" class="brand">
+            <img src="{{ url_for('static', path='images/logo.png') }}" style="width: 48px;" />
+
+            <span class="brand-text">
+                <strong>SKK Generator</strong>
+                <small>Automation System</small>
+            </span>
+        </a>
+
+        <button
+            type="button"
+            class="icon-button sidebar-close-button"
+            data-sidebar-close
+            aria-label="Tutup menu"
+        >
+            <span class="icon icon-close"></span>
+        </button>
+    </div>
+
+    <div class="sidebar-content">
+
+        <div class="sidebar-section">
+            <span class="sidebar-section-title">
+                Utama
+            </span>
+
+            <nav class="sidebar-nav">
+                <a href="/" class="sidebar-link {{ 'active' if request.path == '/' }}">
+                    <span class="sidebar-link-icon">
+                        <span class="fa-solid fa-dashboard"></span>
+                    </span>
+
+                    <span>Dashboard</span>
+                </a>
+            </nav>
+        </div>
+
+        <div class="sidebar-section">
+            <span class="sidebar-section-title">
+                Generate
+            </span>
+
+            <nav class="sidebar-nav">
+
+                <a href="/generations" class="sidebar-link {{ 'active' if request.path.startswith('/generations') }}">
+                    <span class="sidebar-link-icon">
+                        <span class="fa-solid fa-table-cells"></span>
+                    </span>
+
+                    <span>Generator Soal & Kisi Kisi</span>
+                </a>
+
+            </nav>
+        </div>
+
+        {% if current_user and current_user.role.value == "ADMIN" %}
+        <div class="sidebar-section">
+            <span class="sidebar-section-title">
+                Sistem
+            </span>
+
+            <nav class="sidebar-nav">
+
+                <a href="/users" class="sidebar-link {{ 'active' if request.path.startswith('/users') }}">
+                    <span class="sidebar-link-icon">
+                        <span class="fa-solid fa-users"></span>
+                    </span>
+
+                    <span>Pengguna</span>
+                </a>
+
+                <a href="/audit-logs" class="sidebar-link {{ 'active' if request.path.startswith('/audit-logs') }}">
+                    <span class="sidebar-link-icon">
+                        <span class="fa-solid fa-clock-rotate-left"></span>
+                    </span>
+
+                    <span>Audit Log</span>
+                </a>
+
+                <a href="/settings" class="sidebar-link {{ 'active' if request.path.startswith('/settings') }}">
+                    <span class="sidebar-link-icon">
+                        <span class="fa-solid fa-cogs"></span>
+                    </span>
+
+                    <span>Pengaturan</span>
+                </a>
+
+            </nav>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <div class="sidebar-footer">
+        <div class="sidebar-version">
+            <span>Version</span>
+            <strong>0.1.0</strong>
+        </div>
+    </div>
+</aside>

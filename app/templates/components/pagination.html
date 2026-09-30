@@ -1,0 +1,43 @@
+{% if total_pages > 1 %}
+<nav
+    class="pagination"
+    aria-label="Pagination"
+>
+
+    <a
+        href="{{ previous_url }}"
+        class="pagination-button {% if current_page <= 1 %}disabled{% endif %}"
+        {% if current_page <= 1 %}
+            aria-disabled="true"
+        {% endif %}
+    >
+        ←
+    </a>
+
+    {% for page in pages %}
+        {% if page == current_page %}
+            <span class="pagination-button active">
+                {{ page }}
+            </span>
+        {% else %}
+            <a
+                href="{{ page_urls[page] }}"
+                class="pagination-button"
+            >
+                {{ page }}
+            </a>
+        {% endif %}
+    {% endfor %}
+
+    <a
+        href="{{ next_url }}"
+        class="pagination-button {% if current_page >= total_pages %}disabled{% endif %}"
+        {% if current_page >= total_pages %}
+            aria-disabled="true"
+        {% endif %}
+    >
+        →
+    </a>
+
+</nav>
+{% endif %}

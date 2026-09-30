@@ -1,0 +1,21 @@
+{% macro button(
+    text,
+    type="button",
+    variant="primary",
+    size="md",
+    icon=None,
+    disabled=False,
+    class_name=""
+) %}
+<button
+    type="{{ type }}"
+    class="button button-{{ variant }} button-{{ size }} {{ class_name }}"
+    {% if disabled %}disabled{% endif %}
+>
+    {% if icon %}
+        <span class="icon icon-{{ icon }}"></span>
+    {% endif %}
+
+    <span>{{ text }}</span>
+</button>
+{% endmacro %}

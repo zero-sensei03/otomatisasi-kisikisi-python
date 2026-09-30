@@ -1,0 +1,454 @@
+{% extends "layouts/base.html" %}
+
+{% from "components/buttons.html" import button %}
+{% from "components/forms.html" import input, textarea, select %}
+{% from "components/alerts.html" import alert %}
+{% from "components/badges.html" import badge %}
+
+{% block title %}
+UI Showcase — Tesis Otomatisasi Kisi-Kisi
+{% endblock %}
+
+{% block topbar_title %}
+UI Showcase
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+
+    <div class="page-header-content">
+
+        <div class="page-header-heading">
+
+            <nav class="breadcrumb">
+                <a href="/" class="breadcrumb-link">
+                    Dashboard
+                </a>
+
+                <span class="breadcrumb-separator">
+                    /
+                </span>
+
+                <span class="breadcrumb-current">
+                    UI Showcase
+                </span>
+            </nav>
+
+            <h1>
+                Base UI / Design System
+            </h1>
+
+            <p>
+                Halaman demonstrasi komponen dasar aplikasi.
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- Buttons -->
+
+<section class="card" style="margin-bottom: 20px;">
+
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">
+                Buttons
+            </h2>
+
+            <p class="card-description">
+                Tombol untuk berbagai aksi aplikasi.
+            </p>
+        </div>
+    </div>
+
+    <div class="card-body">
+
+        <div
+            style="
+                display:flex;
+                flex-wrap:wrap;
+                gap:8px;
+            "
+        >
+            {{ button("Primary", variant="primary") }}
+            {{ button("Secondary", variant="secondary") }}
+            {{ button("Outline", variant="outline") }}
+            {{ button("Ghost", variant="ghost") }}
+            {{ button("Danger", variant="danger") }}
+            {{ button("Success", variant="success") }}
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- Badges -->
+
+<section class="card" style="margin-bottom: 20px;">
+
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">
+                Badges
+            </h2>
+        </div>
+    </div>
+
+    <div
+        class="card-body"
+        style="
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+        "
+    >
+        {{ badge("Neutral", "neutral") }}
+        {{ badge("Primary", "primary") }}
+        {{ badge("Success", "success") }}
+        {{ badge("Warning", "warning") }}
+        {{ badge("Danger", "danger") }}
+    </div>
+
+</section>
+
+
+<!-- Alerts -->
+
+<section class="card" style="margin-bottom: 20px;">
+
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">
+                Alerts
+            </h2>
+        </div>
+    </div>
+
+    <div class="card-body">
+
+        <div style="display:grid; gap:10px;">
+            {{ alert(
+                "Informasi umum aplikasi.",
+                "info",
+                "Informasi"
+            ) }}
+
+            {{ alert(
+                "Data berhasil disimpan.",
+                "success",
+                "Berhasil"
+            ) }}
+
+            {{ alert(
+                "Perhatikan data sebelum melanjutkan.",
+                "warning",
+                "Perhatian"
+            ) }}
+
+            {{ alert(
+                "Terjadi kesalahan ketika memproses data.",
+                "danger",
+                "Gagal"
+            ) }}
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- Forms -->
+
+<section class="card" style="margin-bottom: 20px;">
+
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">
+                Form Controls
+            </h2>
+        </div>
+    </div>
+
+    <div class="card-body">
+
+        <div
+            style="
+                display:grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(220px, 1fr));
+                gap:16px;
+            "
+        >
+
+            <div>
+                {{ input(
+                    "title",
+                    "Judul Materi",
+                    placeholder="Masukkan judul materi",
+                    required=True,
+                    help_text="Judul akan digunakan sebagai identitas materi."
+                ) }}
+            </div>
+
+            <div>
+                {{ select(
+                    "subject",
+                    "Mata Pelajaran",
+                    [
+                        {"value": "informatika", "label": "Informatika"},
+                        {"value": "matematika", "label": "Matematika"},
+                        {"value": "bahasa", "label": "Bahasa Indonesia"}
+                    ]
+                ) }}
+            </div>
+
+        </div>
+
+        {{ textarea(
+            "description",
+            "Deskripsi",
+            placeholder="Masukkan deskripsi materi...",
+            rows=5
+        ) }}
+
+    </div>
+
+</section>
+
+
+<!-- Table -->
+
+<section class="card" style="margin-bottom: 20px;">
+
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">
+                Table
+            </h2>
+        </div>
+    </div>
+
+    <div class="card-body">
+
+        {% set columns = [
+            "Nama",
+            "Role",
+            "Status",
+            "Aksi"
+        ] %}
+
+        {% set rows = [
+            [
+                "Ahmad",
+                "Guru",
+                "Aktif",
+                "Detail"
+            ],
+            [
+                "Siti",
+                "Guru",
+                "Aktif",
+                "Detail"
+            ],
+            [
+                "Budi",
+                "Admin",
+                "Aktif",
+                "Detail"
+            ]
+        ] %}
+
+        {% include "components/table.html" %}
+
+    </div>
+
+</section>
+
+
+<!-- Loading -->
+
+<section class="card" style="margin-bottom: 20px;">
+
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">
+                Loading & Skeleton
+            </h2>
+        </div>
+    </div>
+
+    <div class="card-body">
+
+        {% include "components/loading.html" %}
+
+        {% include "components/skeleton.html" %}
+
+    </div>
+
+</section>
+
+
+<!-- Empty -->
+
+<section class="card" style="margin-bottom: 20px;">
+
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">
+                Empty State
+            </h2>
+        </div>
+    </div>
+
+    <div class="card-body">
+
+        {% set title = "Belum Ada Materi" %}
+        {% set description = "Tambahkan materi pertama untuk memulai proses." %}
+
+        {% include "components/empty.html" %}
+
+    </div>
+
+</section>
+
+
+<!-- Error -->
+
+<section class="card" style="margin-bottom: 20px;">
+
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">
+                Error State
+            </h2>
+        </div>
+    </div>
+
+    <div class="card-body">
+
+        {% set message = "Data materi tidak dapat dimuat." %}
+        {% set retry = true %}
+
+        {% include "components/error.html" %}
+
+    </div>
+
+</section>
+
+
+<!-- Modal -->
+
+<section class="card">
+
+    <div class="card-header">
+        <div>
+            <h2 class="card-title">
+                Modal
+            </h2>
+
+            <p class="card-description">
+                Modal reusable untuk konfirmasi dan form.
+            </p>
+        </div>
+    </div>
+
+    <div class="card-body">
+
+        <button
+            type="button"
+            class="button button-primary button-md"
+            onclick="openModal('demo-modal')"
+        >
+            Buka Modal
+        </button>
+
+    </div>
+
+</section>
+
+
+{% endblock %}
+
+
+{% block modals %}
+
+<div
+    id="demo-modal"
+    class="modal"
+    data-modal
+    aria-hidden="true"
+>
+    <div
+        class="modal-backdrop"
+        data-modal-close
+    ></div>
+
+    <div
+        class="modal-dialog modal-md"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="demo-modal-title"
+    >
+
+        <div class="modal-header">
+
+            <div>
+                <h2 id="demo-modal-title">
+                    Contoh Modal
+                </h2>
+
+                <p>
+                    Modal ini merupakan bagian dari base UI.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="icon-button"
+                data-modal-close
+                aria-label="Tutup"
+            >
+                <span class="icon icon-close"></span>
+            </button>
+
+        </div>
+
+        <div class="modal-body">
+
+            <p>
+                Modal dapat digunakan untuk konfirmasi,
+                form, atau informasi tambahan.
+            </p>
+
+        </div>
+
+        <div class="modal-footer">
+
+            <button
+                type="button"
+                class="button button-ghost button-md"
+                data-modal-close
+            >
+                Batal
+            </button>
+
+            <button
+                type="button"
+                class="button button-primary button-md"
+                data-modal-close
+            >
+                Simpan
+            </button>
+
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
