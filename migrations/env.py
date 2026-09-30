@@ -10,6 +10,7 @@ import app.models.user
 import app.models.teacher
 import app.models.user_session
 import app.models.audit_log
+import app.models.generation
 
 settings = get_settings()
 
