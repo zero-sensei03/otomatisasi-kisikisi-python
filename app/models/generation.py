@@ -10,6 +10,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
+if TYPE_CHECKING:
+    from app.models.user import User
+
 
 class MaterialType(str, enum.Enum):
     TEXT = "TEXT"
@@ -53,6 +56,7 @@ class Generation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     questions: Mapped[list[GenerationQuestion]] = relationship(back_populates="generation", cascade="all, delete-orphan", order_by="GenerationQuestion.number")
     references: Mapped[list[GenerationReference]] = relationship(back_populates="generation", cascade="all, delete-orphan")
     blueprints: Mapped[list[GenerationBlueprint]] = relationship(back_populates="generation", cascade="all, delete-orphan")
+    owner: Mapped["User"] = relationship("User", foreign_keys=[user_id])
 
 class GenerationReference(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "generation_references"
@@ -98,6 +102,11 @@ class GenerationBlueprint(UUIDPrimaryKeyMixin, Base):
     cognitive_level: Mapped[str] = mapped_column(String(2), nullable=False)
     difficulty: Mapped[str] = mapped_column(String(10), nullable=False)
     generation: Mapped[Generation] = relationship(back_populates="blueprints")
+    question: Mapped[GenerationQuestion] = relationship(foreign_keys=[question_id])
+
+    @property
+    def question_number(self) -> int:
+        return self.question.number
 
 class GenerationUsage(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "generation_usage"

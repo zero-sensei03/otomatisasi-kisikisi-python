@@ -1,0 +1,29 @@
+{% extends "layouts/base.html" %}
+{% block title %}Generate Materi{% endblock %}
+{% block topbar_title %}AI Generation{% endblock %}
+{% block content %}
+<div class="page-header"><div class="page-header-content"><div class="page-header-heading"><h1>Generate Materi</h1><p>Susun rangkuman, soal, dan kisi-kisi dari materi pembelajaran.</p></div><div class="page-header-actions"><a class="button button-outline" href="/generation">Kembali</a></div></div></div>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}{% if notice %}<div class="alert alert-warning">{{ notice }}</div>{% endif %}
+<div class="card generation-quota-card"><div class="card-body"><span class="quota-label">Kuota gratis hari ini</span><strong>{{ quota.remaining }}</strong><span>dari {{ quota.limit }} generation tersisa</span></div></div>
+<form method="post" action="/generation" enctype="multipart/form-data" class="card generation-form">
+<input type="hidden" name="csrf_token" value="{{ csrf.csrf_token }}"><input type="hidden" name="csrf_signature" value="{{ csrf.csrf_signature }}">
+<div class="card-header"><div><h2 class="card-title">Informasi Materi</h2><p class="card-description">Isi informasi dan sumber yang menjadi dasar pembuatan soal.</p></div></div>
+<div class="card-body">
+<div class="form-grid"><div class="form-group"><label class="form-label">Judul Materi <span class="required">*</span></label><input class="form-input" name="title" required maxlength="255" value="{{ form.title if form else '' }}"></div><div class="form-group"><label class="form-label">Mata Pelajaran <span class="required">*</span></label><input class="form-input" name="subject" required value="{{ form.subject if form else '' }}"></div><div class="form-group"><label class="form-label">Kelas <span class="required">*</span></label><input class="form-input" name="class_name" required value="{{ form.class_name if form else '' }}"></div><div class="form-group"><label class="form-label">Jenis Materi</label><select class="form-select" id="material-type" name="type_materi"><option value="TEXT" {% if not form or form.type_materi == 'TEXT' %}selected{% endif %}>Teks</option><option value="FILE" {% if form and form.type_materi == 'FILE' %}selected{% endif %}>File PDF atau DOCX</option></select></div></div>
+<div class="form-group"><label class="form-label">Deskripsi</label><textarea class="form-textarea" name="description" rows="3">{{ form.description if form else '' }}</textarea></div>
+<div class="form-group" id="text-material"><label class="form-label">Materi Teks <span class="required">*</span></label><textarea class="form-textarea" name="materi_text" rows="10" placeholder="Tempel materi pembelajaran di sini">{{ form.materi_text if form else '' }}</textarea></div>
+<div class="form-group" id="file-material" hidden><label class="form-label">File Materi <span class="required">*</span></label><input class="form-input" name="materi_file" type="file" accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"><p class="form-help">Format yang didukung: PDF dan DOCX.</p></div>
+<section class="form-section"><h3 class="form-section-title">Referensi Materi</h3><div id="references" class="reference-list">{% for url in (form.references if form else []) %}<div class="reference-row"><input class="form-input" type="url" name="references" placeholder="https://" value="{{ url }}"><button class="button button-danger-ghost remove-reference" type="button">Hapus</button></div>{% endfor %}</div><button class="button button-outline button-sm" type="button" id="add-reference"><span class="fa-solid fa-plus"></span> Tambah Referensi</button></section>
+<section class="form-section"><h3 class="form-section-title">Jumlah Soal</h3><div class="form-grid three-columns"><div class="form-group"><label class="form-label">Pilihan Ganda</label><input class="form-input" type="number" min="0" name="total_multiple_choice" value="{{ form.total_multiple_choice if form else 0 }}"></div><div class="form-group"><label class="form-label">Isian</label><input class="form-input" type="number" min="0" name="total_short_answer" value="{{ form.total_short_answer if form else 0 }}"></div><div class="form-group"><label class="form-label">Essay</label><input class="form-input" type="number" min="0" name="total_essay" value="{{ form.total_essay if form else 0 }}"></div></div></section>
+<div class="form-actions"><a class="button button-outline" href="/generation">Batal</a><button class="button button-primary" type="submit"><span class="fa-solid fa-wand-magic-sparkles"></span> Generate</button></div>
+</div></form>
+{% endblock %}
+{% block scripts %}<script>
+const typeSelect=document.getElementById('material-type');
+function toggleMaterial(){const isText=typeSelect.value==='TEXT';document.getElementById('text-material').hidden=!isText;document.getElementById('file-material').hidden=isText;document.querySelector('[name="materi_text"]').required=isText;document.querySelector('[name="materi_file"]').required=!isText;}
+typeSelect.addEventListener('change',toggleMaterial);toggleMaterial();
+const refs=document.getElementById('references');
+function wireRemove(button){button.addEventListener('click',()=>button.closest('.reference-row').remove());}
+function addReference(){const row=document.createElement('div');row.className='reference-row';const input=document.createElement('input');input.type='url';input.name='references';input.placeholder='https://';input.className='form-input';const remove=document.createElement('button');remove.type='button';remove.className='button button-danger-ghost remove-reference';remove.textContent='Hapus';wireRemove(remove);row.append(input,remove);refs.append(row);}
+document.querySelectorAll('.remove-reference').forEach(wireRemove);document.getElementById('add-reference').addEventListener('click',addReference);
+</script>{% endblock %}

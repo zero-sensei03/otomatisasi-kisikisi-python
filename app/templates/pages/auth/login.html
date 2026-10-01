@@ -7,7 +7,7 @@
     <div class="auth-card">
 
         <div class="auth-brand">
-            <div class="brand-mark">K</div>
+            <img src="{{ url_for('static', path='images/logo.png') }}" style="width: 52px;" />
 
             <div>
                 <div class="brand-name">
@@ -44,6 +44,15 @@
                 <span>
                     Silakan masuk menggunakan akun Anda.
                 </span>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if request.query_params.get("password_changed") %}
+        <div class="alert alert-success">
+            <div class="alert-content">
+                <strong>Password berhasil diubah</strong>
+                <span>Silakan masuk kembali dengan password baru.</span>
             </div>
         </div>
         {% endif %}

@@ -1,9 +1,8 @@
-def test_health_check(client):
-    response = client.get("/health")
+def test_health_check():
+    from app.routers.health import health_check
+
+    response = health_check()
 
     assert response.status_code == 200
 
-    assert response.json() == {
-        "status": "ok",
-        "service": "otomatisasi-kisikisi",
-    }
+    assert response.body == b'{"status":"ok","service":"otomatisasi-kisikisi"}'

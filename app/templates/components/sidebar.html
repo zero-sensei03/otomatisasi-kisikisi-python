@@ -44,12 +44,12 @@
 
             <nav class="sidebar-nav">
 
-                <a href="/generations" class="sidebar-link {{ 'active' if request.path.startswith('/generations') }}">
+                <a href="/generation" class="sidebar-link {{ 'active' if request.path.startswith('/generation') }}">
                     <span class="sidebar-link-icon">
-                        <span class="fa-solid fa-table-cells"></span>
+                        <span class="fa-solid fa-wand-magic-sparkles"></span>
                     </span>
 
-                    <span>Generator Soal & Kisi Kisi</span>
+                    <span>AI Generation</span>
                 </a>
 
             </nav>
@@ -90,6 +90,16 @@
             </nav>
         </div>
         {% endif %}
+
+        <div class="sidebar-section">
+            <span class="sidebar-section-title">Akun</span>
+            <nav class="sidebar-nav">
+                <a href="/profile" class="sidebar-link {{ 'active' if request.path == '/profile' }}">
+                    <span class="sidebar-link-icon"><span class="fa-solid fa-user"></span></span>
+                    <span>Profil Saya</span>
+                </a>
+            </nav>
+        </div>
 
     </div>
 

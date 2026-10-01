@@ -1669,6 +1669,126 @@ img {
     letter-spacing: 0.05em;
 }
 
+/* =========================================================
+   GENERATION PAGES
+   ========================================================= */
+
+.generation-form,
+.detail-section,
+.detail-overview,
+.profile-card {
+    margin-bottom: 22px;
+}
+
+.generation-form .card-body,
+.detail-section > .card-body,
+.detail-overview > .card-body {
+    padding: 22px;
+}
+
+.generation-form .card-header,
+.detail-section .card-header,
+.detail-overview .card-header {
+    padding: 18px 22px;
+}
+
+.generation-quota-card {
+    margin-bottom: 18px;
+    border-color: #ead9b6;
+    background: var(--color-primary-soft);
+}
+
+.generation-quota-card .card-body,
+.quota-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.generation-quota-card .card-body { padding: 14px 20px; }
+.generation-quota-card strong,
+.quota-chip strong { color: var(--color-primary-hover); font-size: 20px; }
+.quota-label,
+.generation-quota-card span:last-child,
+.quota-chip span { color: var(--color-text-secondary); font-size: 12px; }
+.quota-chip { padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.quota-chip strong { font-size: 14px; }
+.generation-form .form-section { margin-top: 22px; }
+.three-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.reference-list { display: grid; gap: 10px; margin-bottom: 12px; }
+.reference-row { display: flex; align-items: center; gap: 10px; }
+.reference-row .form-input { flex: 1; }
+.form-actions,
+.table-actions,
+.section-actions,
+.export-question-form { display: flex; align-items: center; gap: 8px; }
+.form-actions { justify-content: flex-end; margin-top: 20px; }
+.table-actions form { margin: 0; }
+.filter-card { margin-bottom: 18px; }
+.filter-card .card-body { padding: 16px 20px; }
+.filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); align-items: end; gap: 14px; }
+.filter-grid .form-group { grid-column: auto; margin: 0; }
+.filter-submit { height: 42px; }
+.filter-grid .filter-actions { grid-column: auto; align-self: end; }
+.filter-grid .filter-field-search { grid-column: auto; }
+.table-card { overflow: hidden; margin-bottom: 18px; }
+.table-card-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-bottom: 1px solid var(--color-border); }
+.table-card-header .card-description { margin-bottom: 0; }
+.generation-question-table { min-width: 1100px; }
+.generation-question-table td { vertical-align: top; }
+.question-option { margin: 7px 0 0; }
+.correct-mark { color: var(--color-success); font-weight: 700; }
+.row-editor { min-width: 80px; }
+.row-editor summary { list-style: none; cursor: pointer; }
+.row-editor summary::-webkit-details-marker { display: none; }
+.question-edit-form { min-width: 290px; max-width: 380px; padding: 16px; margin-top: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-md); }
+.question-edit-form .form-label { margin-top: 12px; }
+.section-actions { flex-wrap: wrap; justify-content: flex-end; }
+.export-question-form .form-select { width: 170px; }
+.detail-meta-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+.detail-meta-grid > div { display: flex; flex-direction: column; gap: 3px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.detail-meta-grid small { color: var(--color-text-muted); }
+.detail-meta-grid strong { font-size: 14px; }
+.source-material { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--color-border); }
+.source-material summary { cursor: pointer; color: var(--color-primary-hover); font-weight: 650; }
+.source-file-card { display: flex; align-items: center; gap: 14px; padding: 16px; margin-top: 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.source-file-card > .fa-solid { color: var(--color-primary-hover); font-size: 24px; }
+.source-file-card > div { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+.source-file-card small { color: var(--color-text-muted); overflow-wrap: anywhere; }
+.math-content { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+.inline-editor { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--color-border); }
+.inline-editor[hidden] { display: none; }
+.blueprint-list { display: grid; gap: 14px; }
+.blueprint-item { display: grid; grid-template-columns: 38px 1fr; gap: 14px; padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: #fff; }
+.blueprint-number { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary-hover); font-weight: 700; }
+.blueprint-item h3 { margin: 2px 0 12px; font-size: 14px; }
+.blueprint-item p { margin: 0 0 10px; }
+.blueprint-tags { display: flex; gap: 7px; }
+.blueprint-edit-item { padding: 16px; margin: 0 0 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.blueprint-edit-item legend { padding: 0 7px; font-weight: 700; }
+.blueprint-editor-disclosure { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--color-border); }
+.blueprint-editor-disclosure > summary { display: inline-flex; align-items: center; list-style: none; cursor: pointer; }
+.blueprint-editor-disclosure > summary::-webkit-details-marker { display: none; }
+.blueprint-editor-disclosure[open] > summary { margin-bottom: 2px; }
+.blueprint-editor-disclosure .inline-editor { margin-top: 8px; }
+.reference-link { color: var(--color-primary-hover); text-decoration: underline; }
+
+@media (max-width: 760px) {
+    .three-columns,
+    .detail-meta-grid,
+    .filter-grid { grid-template-columns: 1fr; }
+    .generation-quota-card .card-body { flex-wrap: wrap; }
+    .section-actions { justify-content: flex-start; }
+    .export-question-form { flex-wrap: wrap; }
+    .page-header-actions { flex-wrap: wrap; }
+    .source-file-card { align-items: flex-start; flex-wrap: wrap; }
+}
+
+@media (min-width: 761px) {
+    .filter-grid .filter-actions { justify-content: flex-start; }
+    .filter-grid .filter-actions .button { flex: 0 0 auto; }
+}
+
 
 /* =========================================================
    CHECKBOX
