@@ -26,6 +26,7 @@ htmlcov/
 Thumbs.db
 
 # Application storage
+logs/
 storage/materials/*
 storage/references/*
 storage/exports/*

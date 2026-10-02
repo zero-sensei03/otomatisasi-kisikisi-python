@@ -1,6 +1,9 @@
 import logging
+import os
 import re
-import sys
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -32,16 +35,80 @@ class CredentialRedactingFormatter(logging.Formatter):
         message = self._credential_patterns[1].sub(r"\1[REDACTED]", message)
         return self._credential_patterns[2].sub("[REDACTED]", message)
 
-# Uvicorn/systemd logging configurations vary. Attach app logs to stdout
-# explicitly so generation stage events reliably appear in journalctl.
-application_logger = logging.getLogger("app")
-application_logger.setLevel(logging.INFO)
-application_logger.propagate = False
-if not any(getattr(handler, "_kisikisi_app_handler", False) for handler in application_logger.handlers):
-    app_handler = logging.StreamHandler(sys.stdout)
-    app_handler.setFormatter(CredentialRedactingFormatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s"))
-    app_handler._kisikisi_app_handler = True
-    application_logger.addHandler(app_handler)
+
+class DailyFileHandler(logging.Handler):
+    """Write each record to a private file named by its local calendar day."""
+
+    def __init__(self, directory: Path, timezone_name: str):
+        super().__init__(logging.INFO)
+        self.directory = directory
+        self.timezone = ZoneInfo(timezone_name)
+        self.current_day = None
+        self.stream = None
+        self.directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        self.directory.chmod(0o700)
+
+    def emit(self, record):
+        try:
+            day = datetime.now(self.timezone).date().isoformat()
+            if day != self.current_day:
+                if self.stream is not None:
+                    self.stream.close()
+                path = self.directory / f"{day}.log"
+                descriptor = os.open(path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
+                os.fchmod(descriptor, 0o600)
+                self.stream = os.fdopen(descriptor, "a", encoding="utf-8")
+                self.current_day = day
+            self.stream.write(f"{self.format(record)}\n")
+            self.stream.flush()
+        except Exception:
+            self.handleError(record)
+
+    def close(self):
+        self.acquire()
+        try:
+            if self.stream is not None:
+                self.stream.close()
+                self.stream = None
+            super().close()
+        finally:
+            self.release()
+
+
+def configure_application_logging() -> None:
+    file_handler = next(
+        (handler for handler in logging.getLogger().handlers if getattr(handler, "_kisikisi_daily_handler", False)),
+        None,
+    )
+    if file_handler is None:
+        file_handler = DailyFileHandler(Path("logs"), settings.timezone)
+        file_handler.setFormatter(
+            CredentialRedactingFormatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+        )
+        file_handler._kisikisi_daily_handler = True
+
+    root_logger = logging.getLogger()
+    for handler in tuple(root_logger.handlers):
+        root_logger.removeHandler(handler)
+        if getattr(handler, "_kisikisi_daily_handler", False):
+            continue
+        handler.close()
+    root_logger.setLevel(logging.INFO)
+    root_logger.addHandler(file_handler)
+
+    # Uvicorn installs its own console handlers before importing this module.
+    # Clear them so application, access, and server logs all go through the file.
+    for logger_name in ("app", "uvicorn", "uvicorn.error", "uvicorn.access"):
+        named_logger = logging.getLogger(logger_name)
+        for handler in tuple(named_logger.handlers):
+            named_logger.removeHandler(handler)
+            handler.close()
+        named_logger.setLevel(logging.INFO)
+        named_logger.propagate = True
+
+
+configure_application_logging()
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 app = FastAPI(
     title=settings.app_name,
