@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -16,6 +17,17 @@ settings = get_settings()
 templates = Jinja2Templates(directory="app/templates")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
+# Uvicorn/systemd logging configurations vary. Attach app logs to stdout
+# explicitly so generation stage events reliably appear in journalctl.
+application_logger = logging.getLogger("app")
+application_logger.setLevel(logging.INFO)
+application_logger.propagate = False
+if not any(getattr(handler, "_kisikisi_app_handler", False) for handler in application_logger.handlers):
+    app_handler = logging.StreamHandler(sys.stdout)
+    app_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s"))
+    app_handler._kisikisi_app_handler = True
+    application_logger.addHandler(app_handler)
 
 app = FastAPI(
     title=settings.app_name,
