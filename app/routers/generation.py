@@ -1,3 +1,4 @@
+import logging
 import math
 import re
 import uuid
@@ -25,6 +26,8 @@ from app.services.generation_service import GenerationService
 
 router = APIRouter(tags=["Generation"])
 templates = Jinja2Templates(directory="app/templates")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 admin_required = Depends(require_roles(UserRole.ADMIN))
 
 
@@ -63,6 +66,7 @@ def create_page(request: Request, retry_from: uuid.UUID | None = Query(None), db
 
 @router.post("/generation", response_class=HTMLResponse)
 def create_generation(request: Request, title: str = Form(...), description: str | None = Form(None), subject: str = Form(...), class_name: str = Form(...), type_materi: str = Form(...), materi_text: str | None = Form(None), references: list[str] = Form(default=[]), total_multiple_choice: int = Form(0), total_short_answer: int = Form(0), total_essay: int = Form(0), materi_file: UploadFile | None = File(None), db: Session = Depends(get_database), user: User = Depends(get_current_user), _: None = Depends(require_csrf)):
+    logger.info("generation stage=request event=submitted user_id=%s", user.id)
     try:
         schema = GenerationCreateSchema(title=title, description=description, subject=subject, class_name=class_name, type_materi=type_materi, materi_text=materi_text, references=references, total_multiple_choice=total_multiple_choice, total_short_answer=total_short_answer, total_essay=total_essay)
         ip, agent = request_meta(request)
@@ -71,6 +75,7 @@ def create_generation(request: Request, title: str = Form(...), description: str
             return RedirectResponse(f"/generation/{generation.id}?error=Generation%20gagal.%20Silakan%20coba%20kembali.", status_code=303)
         return RedirectResponse(f"/generation/{generation.id}", status_code=303)
     except (ValidationError, ValueError, HTTPException) as exc:
+        logger.warning("generation stage=request_validation event=rejected user_id=%s error_type=%s status_code=%s", user.id, type(exc).__name__, getattr(exc, "status_code", 422))
         db.rollback()
         error = exc.errors()[0]["msg"] if isinstance(exc, ValidationError) else getattr(exc, "detail", str(exc))
         return templates.TemplateResponse(request=request, name="pages/generation/create.html", context={"current_user": user, "quota": GenerationService(db).quota(user.id), "csrf": csrf_context(), "error": error, "form": {"title": title, "description": description or "", "subject": subject, "class_name": class_name, "type_materi": type_materi, "materi_text": materi_text or "", "references": references, "total_multiple_choice": total_multiple_choice, "total_short_answer": total_short_answer, "total_essay": total_essay}}, status_code=422)

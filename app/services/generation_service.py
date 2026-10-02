@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import logging
 import uuid
 from pathlib import Path
 
@@ -19,6 +20,21 @@ from app.models.user import User
 from app.repositories.generation_repository import GenerationRepository, GenerationSettingRepository
 from app.schemas.generation import GenerationCreateSchema
 from app.services.audit_service import AuditService
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
+def log_generation_event(generation_id, stage: str, event: str, **metadata) -> None:
+    fields = " ".join(f"{key}={value}" for key, value in metadata.items())
+    logger.info(
+        "generation id=%s stage=%s event=%s%s",
+        generation_id,
+        stage,
+        event,
+        f" {fields}" if fields else "",
+    )
+
 
 def truncate_material(text: str, limit: int) -> str:
     if len(text) <= limit:
@@ -61,16 +77,33 @@ class GenerationService:
         return generation
 
     def create(self, data: GenerationCreateSchema, user: User, *, upload=None, ip_address=None, user_agent=None, existing_generation=None):
-        if self.setting("generation.enabled").lower() != "true":
-            raise HTTPException(status_code=403, detail="Fitur generation sedang tidak tersedia.")
-        distribution = {"multiple_choice": data.total_multiple_choice, "short_answer": data.total_short_answer, "essay": data.total_essay}
-        total = sum(distribution.values())
-        if total > int(self.setting("generation.max_questions_per_generate")):
-            raise HTTPException(status_code=422, detail="Jumlah soal melebihi batas per generation.")
-        if self.quota(user.id)["remaining"] < 1:
-            raise HTTPException(status_code=403, detail="Kuota generation Anda sudah habis.")
-        if data.type_materi == "FILE" and upload is None:
-            raise HTTPException(status_code=422, detail="File materi wajib diunggah.")
+        generation_id = existing_generation.id if existing_generation else "not-created"
+        log_generation_event(generation_id, "preflight", "started", user_id=user.id, retry=bool(existing_generation))
+        try:
+            if self.setting("generation.enabled").lower() != "true":
+                raise HTTPException(status_code=403, detail="Fitur generation sedang tidak tersedia.")
+            distribution = {"multiple_choice": data.total_multiple_choice, "short_answer": data.total_short_answer, "essay": data.total_essay}
+            total = sum(distribution.values())
+            maximum_questions = int(self.setting("generation.max_questions_per_generate"))
+            log_generation_event(generation_id, "preflight", "settings_loaded", maximum_questions=maximum_questions)
+            if total > maximum_questions:
+                raise HTTPException(status_code=422, detail="Jumlah soal melebihi batas per generation.")
+            quota = self.quota(user.id)
+            log_generation_event(generation_id, "preflight", "quota_checked", remaining=quota["remaining"])
+            if quota["remaining"] < 1:
+                raise HTTPException(status_code=403, detail="Kuota generation Anda sudah habis.")
+            if data.type_materi == "FILE" and upload is None:
+                raise HTTPException(status_code=422, detail="File materi wajib diunggah.")
+            log_generation_event(generation_id, "preflight", "completed", material_type=data.type_materi, question_count=total)
+        except Exception as exc:
+            log_generation_event(
+                generation_id,
+                "preflight",
+                "failed",
+                error_type=type(exc).__name__,
+                status_code=getattr(exc, "status_code", "-"),
+            )
+            raise
         generation = existing_generation
         if generation is None:
             generation = Generation(user_id=user.id, title=data.title.strip(), description=data.description, subject=data.subject.strip(), class_name=data.class_name.strip(), type_materi=MaterialType(data.type_materi), material_text="", status=GenerationStatus.PENDING, total_multiple_choice=data.total_multiple_choice, total_short_answer=data.total_short_answer, total_essay=data.total_essay, total_questions=total)
@@ -84,23 +117,33 @@ class GenerationService:
             generation.blueprints.clear()
             generation.references.clear()
         self.db.commit()
+        log_generation_event(generation.id, "database", "pending_saved")
         self.audit.log(action="GENERATION_STARTED", feature="GENERATION", user_id=user.id, resource="GENERATION", resource_id=str(generation.id), ip_address=ip_address, user_agent=user_agent)
         generation.status = GenerationStatus.PROCESSING
         generation.started_at = datetime.now(timezone.utc)
         self.db.commit()
+        log_generation_event(generation.id, "database", "processing_saved")
+        stage = "material_settings"
         try:
+            log_generation_event(generation.id, stage, "started")
             maximum_material = int(self.setting("generation.max_material_characters"))
             file_name = file_mime = None
             if data.type_materi == "TEXT":
                 material = "\n".join(line.strip() for line in (data.materi_text or "").splitlines() if line.strip())
                 material = truncate_material(material, maximum_material)
+                log_generation_event(generation.id, "material", "text_ready", character_count=len(material), truncated=len(data.materi_text or "") > maximum_material)
             else:
+                stage = "material_file_validation"
+                log_generation_event(generation.id, stage, "started", file_size=upload.size or 0)
                 maximum_file_size = get_settings().max_upload_size
                 if upload.size is not None and upload.size > maximum_file_size:
                     raise ValueError("File kosong atau melebihi batas ukuran.")
                 file_bytes = upload.file.read(maximum_file_size + 1)
+                stage = "material_file_extraction"
                 extracted = MaterialExtractor().extract(upload.filename or "materi", upload.content_type or "", file_bytes, maximum_file_size)
                 material, file_name, file_mime = truncate_material(extracted.text, maximum_material), extracted.filename, extracted.mime_type
+                log_generation_event(generation.id, stage, "completed", mime_type=file_mime, byte_count=len(file_bytes), character_count=len(material))
+                stage = "material_file_storage"
                 storage_root = Path(get_settings().storage_path) / "generation_private"
                 storage_root.mkdir(mode=0o700, parents=True, exist_ok=True)
                 storage_root.chmod(0o700)
@@ -110,27 +153,41 @@ class GenerationService:
                 generation.material_file_name = file_name
                 generation.material_file_path = str(storage_file)
                 generation.material_file_mime_type = file_mime
+                log_generation_event(generation.id, stage, "completed")
             generation.material_text = material
             references, reference_texts = [], []
+            stage = "references"
             reference_limit = int(self.setting("generation.max_reference_characters"))
-            for url in data.references:
+            log_generation_event(generation.id, stage, "started", reference_count=len(data.references))
+            for index, url in enumerate(data.references, start=1):
                 if not url.strip():
                     continue
+                log_generation_event(generation.id, stage, "fetch_started", reference_index=index)
                 content, title, error = ReferenceContentService().fetch(url.strip(), reference_limit)
                 references.append(GenerationReference(generation_id=generation.id, url=url.strip(), title=title, extracted_content=content, extraction_status="SUCCESS" if content else "FAILED", error_message=error))
                 if content:
                     reference_texts.append(f"URL: {url.strip()}\n{content}")
+                log_generation_event(generation.id, stage, "fetch_completed", reference_index=index, result="success" if content else "failed", character_count=len(content or ""))
             self.db.add_all(references)
             # Keep source material available if provider setup or generation fails,
             # so the user can retry the failed generation later.
             self.db.commit()
+            log_generation_event(generation.id, "references", "saved", successful_count=len(reference_texts))
+            stage = "ai_request"
+            log_generation_event(generation.id, stage, "building")
             request = AIGenerationRequest(title=data.title, description=data.description or "", subject=data.subject, class_name=data.class_name, material=material, references=reference_texts, question_distribution=QuestionDistribution(**distribution))
+            stage = "provider_initialization"
+            log_generation_event(generation.id, stage, "started")
             provider = AIProviderFactory.create()
+            log_generation_event(generation.id, stage, "completed", provider=provider.name, model=provider.model)
             result = None
             repair_context = None
             for attempt in range(3):
+                stage = "ai_request"
+                log_generation_event(generation.id, stage, "started", attempt=attempt + 1, repair=attempt > 0, provider=provider.name, model=provider.model)
                 try:
                     candidate = provider.generate(request, repair=attempt > 0, repair_context=repair_context)
+                    log_generation_event(generation.id, stage, "response_received", attempt=attempt + 1, question_count=len(candidate.questions), blueprint_count=len(candidate.blueprint))
                     counts = {"MULTIPLE_CHOICE": 0, "SHORT_ANSWER": 0, "ESSAY": 0}
                     for question in candidate.questions:
                         counts[question.type] += 1
@@ -140,19 +197,27 @@ class GenerationService:
                             "previous_response": candidate.model_dump_json(),
                             "feedback": f"Jumlah tipe soal tidak sesuai. Jumlah yang diminta: {expected_counts}. Jumlah yang diterima: {counts}.",
                         }
+                        log_generation_event(generation.id, stage, "count_validation_failed", attempt=attempt + 1, received_counts=counts)
                         raise AIResponseError("Jumlah soal dari Gemini tidak sesuai permintaan.", repair_context=repair_context)
                     result = candidate
+                    log_generation_event(generation.id, stage, "validated", attempt=attempt + 1)
                     break
                 except AIResponseError as exc:
+                    diagnostic = (exc.repair_context or {}).get("feedback", "")
                     repair_context = exc.repair_context or {"feedback": str(exc)}
+                    log_generation_event(generation.id, stage, "response_invalid", attempt=attempt + 1, error_type=type(exc).__name__, diagnostic=diagnostic[:300].replace("\n", " "), retrying=attempt < 2)
                     if attempt == 2:
                         raise
                 except AIProviderHTTPError as exc:
+                    log_generation_event(generation.id, stage, "provider_http_error", attempt=attempt + 1, status_code=exc.status_code, retryable=exc.retryable, retrying=exc.retryable and attempt < 2)
                     if not exc.retryable or attempt == 2:
                         raise
-                except Exception:
+                except Exception as exc:
+                    log_generation_event(generation.id, stage, "provider_error", attempt=attempt + 1, error_type=type(exc).__name__, retrying=attempt < 2)
                     if attempt == 2:
                         raise
+            stage = "result_persistence"
+            log_generation_event(generation.id, stage, "started", question_count=len(result.questions), blueprint_count=len(result.blueprint))
             generation.ai_provider = provider.name
             generation.ai_model = provider.model
             generation.summary = result.summary
@@ -166,18 +231,33 @@ class GenerationService:
             self.db.flush()
             question_by_number = {q.number: q for q in db_questions}
             self.db.add_all([GenerationBlueprint(generation_id=generation.id, question_id=question_by_number[item.question_number].id, number=item.number, material_topic=item.material_topic, learning_objective=item.learning_objective, indicator=item.indicator, question_type=item.question_type, cognitive_level=item.cognitive_level, difficulty=item.difficulty) for item in result.blueprint])
+            self.db.flush()
+            log_generation_event(generation.id, stage, "completed", question_count=len(db_questions), blueprint_count=len(result.blueprint))
             # Serialize final quota consumption for this user to avoid spending the last slot twice.
+            stage = "quota_consumption"
+            log_generation_event(generation.id, stage, "started")
             self.db.scalar(select(User).where(User.id == user.id).with_for_update())
             if self.quota(user.id)["remaining"] < 1:
                 raise ValueError("Kuota generation Anda sudah habis.")
             self.db.add(GenerationUsage(user_id=user.id, generation_id=generation.id, free_generation_used=1, cost=generation.generation_cost))
+            log_generation_event(generation.id, stage, "recorded")
             generation.status = GenerationStatus.COMPLETED
             generation.completed_at = datetime.now(timezone.utc)
             generation.error_message = None
             self.audit.log(action="GENERATION_COMPLETED", feature="GENERATION", user_id=user.id, resource="GENERATION", resource_id=str(generation.id), ip_address=ip_address, user_agent=user_agent)
+            log_generation_event(generation.id, "audit", "completed")
             self.db.commit()
+            log_generation_event(generation.id, "generation", "completed", provider=provider.name, model=provider.model)
             return generation
-        except Exception:
+        except Exception as exc:
+            log_generation_event(
+                generation.id,
+                stage,
+                "failed",
+                error_type=type(exc).__name__,
+                status_code=getattr(exc, "status_code", "-"),
+                provider_error_type=type(exc.__cause__).__name__ if exc.__cause__ else "-",
+            )
             self.db.rollback()
             generation = self.db.get(Generation, generation.id)
             if generation:
@@ -186,6 +266,7 @@ class GenerationService:
                 generation.completed_at = datetime.now(timezone.utc)
                 self.audit.log(action="GENERATION_FAILED", feature="GENERATION", user_id=user.id, resource="GENERATION", resource_id=str(generation.id), description="Generation gagal.", ip_address=ip_address, user_agent=user_agent)
                 self.db.commit()
+                log_generation_event(generation.id, "generation", "failed", persisted_status=generation.status.value)
             return generation
 
     def retry(self, generation_id, user: User, *, ip_address=None, user_agent=None):

@@ -1,0 +1,34 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ status_code }} - Terjadi Kesalahan{% endblock %}
+{% block topbar_title %}Terjadi Kesalahan{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <div class="page-header-heading">
+            <div class="breadcrumb">
+                <a class="breadcrumb-link" href="/">Beranda</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-current">{{ status_code }}</span>
+            </div>
+            <h1>{{ status_code }} · Terjadi Kesalahan</h1>
+            <p class="page-description">Halaman yang Anda minta tidak dapat ditampilkan.</p>
+        </div>
+    </div>
+</div>
+
+<section class="card">
+    <div class="card-body">
+        <div class="error-state">
+            <div class="empty-state-icon"><span class="fa-solid fa-circle-exclamation" aria-hidden="true"></span></div>
+            <h3>{{ message }}</h3>
+            <p>Periksa alamat yang Anda buka atau kembali ke halaman awal.</p>
+            <div class="form-actions">
+                <a class="button button-primary" href="/">Kembali ke Beranda</a>
+                {% if status_code == 401 %}<a class="button button-outline" href="/auth/login">Masuk</a>{% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

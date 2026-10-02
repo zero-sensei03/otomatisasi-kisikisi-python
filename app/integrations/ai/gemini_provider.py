@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 
 import httpx
@@ -14,6 +15,10 @@ from app.integrations.ai.prompts.generation_prompt import build_generation_promp
 from app.integrations.ai.schemas import AIGenerationRequest, AIGenerationResponse
 from app.integrations.ai.settings import AISettings
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
 class GeminiProvider:
     name = "gemini"
 
@@ -21,6 +26,7 @@ class GeminiProvider:
         settings = AISettings()
         self.api_key = settings.gemini_api_key.strip()
         self.model = settings.ai_model.strip()
+        logger.info("Gemini configuration model=%s api_key_configured=%s", self.model or "unset", bool(self.api_key))
         if not self.api_key:
             raise AIConfigurationError("GEMINI_API_KEY belum dikonfigurasi.")
 
