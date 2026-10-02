@@ -29,6 +29,7 @@ Thumbs.db
 storage/materials/*
 storage/references/*
 storage/exports/*
+storage/generation_private/*
 
 # Keep storage directories
 !storage/materials/.gitkeep
