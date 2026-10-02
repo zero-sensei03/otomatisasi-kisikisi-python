@@ -45,6 +45,14 @@ class GeminiProvider:
         )
         if not self.api_key:
             raise AIConfigurationError("GEMINI_API_KEY belum dikonfigurasi.")
+        if re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", self.api_key):
+            logger.error(
+                "Gemini configuration invalid reason=api_key_contains_env_assignment "
+                "hint=GEMINI_API_KEY_value_must_contain_only_the_key"
+            )
+            raise AIConfigurationError(
+                "Format GEMINI_API_KEY salah. Isikan hanya nilai API key, tanpa nama variabel lain."
+            )
 
     def generate(self, request: AIGenerationRequest, *, repair: bool = False, repair_context: dict | None = None, generation_id: str | None = None, attempt: int = 1) -> AIGenerationResponse:
         correlation_id = generation_id or "untracked"

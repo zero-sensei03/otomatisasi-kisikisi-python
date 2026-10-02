@@ -6,7 +6,7 @@ import logging
 import httpx
 import pytest
 
-from app.integrations.ai.exceptions import AIProviderHTTPError
+from app.integrations.ai.exceptions import AIConfigurationError, AIProviderHTTPError
 from app.integrations.ai.gemini_provider import GEMINI_ENDPOINT, GeminiProvider
 from app.integrations.ai.schemas import AIGenerationRequest, QuestionDistribution
 from app.main import CredentialRedactingFormatter
@@ -120,6 +120,14 @@ def test_gemini_http_error_preserves_provider_body_and_redacts_key(monkeypatch, 
     assert key not in error.diagnostic
     assert key not in error.response_body
     assert "[REDACTED]" in error.diagnostic
+
+
+def test_gemini_rejects_environment_assignment_inside_api_key(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "APP_NAME=not-a-real-key")
+    monkeypatch.setenv("AI_MODEL", "gemini-3.1-flash-lite")
+
+    with pytest.raises(AIConfigurationError, match="Format GEMINI_API_KEY salah"):
+        GeminiProvider()
 
 
 def test_application_formatter_redacts_credentials_from_traceback():
