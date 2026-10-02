@@ -275,7 +275,10 @@ class GenerationService:
                 "failed",
                 error_type=type(exc).__name__,
                 status_code=getattr(exc, "status_code", "-"),
-                provider_error_type=type(exc.__cause__).__name__ if exc.__cause__ else "-",
+                provider_error_type=getattr(exc, "provider_error_type", None) or (type(exc.__cause__).__name__ if exc.__cause__ else "-"),
+                provider_error_code=getattr(exc, "provider_error_code", "-"),
+                provider_error_status=getattr(exc, "provider_error_status", "-"),
+                provider_error_message=getattr(exc, "provider_error_message", "-"),
             )
             self.db.rollback()
             generation = self.db.get(Generation, generation.id)

@@ -124,16 +124,18 @@ class GeminiProvider:
                 parsed_error = response.json()
             except ValueError:
                 pass
-            provider_error = parsed_error.get("error", parsed_error) if isinstance(parsed_error, dict) else {}
-            if not isinstance(provider_error, dict):
-                provider_error = {"value": provider_error}
+            provider_error = self._extract_provider_error(parsed_error)
             message = self._redact_secrets(self._one_line(str(provider_error.get("message") or provider_error.get("detail") or response.reason_phrase)))
             safe_raw_body = self._redact_secrets(raw_body)[:MAX_LOGGED_ERROR_BODY]
             error_details = self._redact_secrets(json.dumps(provider_error.get("details") or provider_error.get("errors"), ensure_ascii=False, default=str))
+            detail_entries = provider_error.get("details") or provider_error.get("errors") or []
+            detail_type = next((item.get("@type") or item.get("type") for item in detail_entries if isinstance(item, dict) and (item.get("@type") or item.get("type"))), None) if isinstance(detail_entries, list) else None
+            error_info = next((item for item in detail_entries if isinstance(item, dict) and item.get("reason")), {}) if isinstance(detail_entries, list) else {}
             diagnostic_data = {
-                "provider_error_type": provider_error.get("type") or provider_error.get("@type") or provider_error.get("reason"),
+                "provider_error_type": provider_error.get("type") or provider_error.get("@type") or detail_type,
                 "provider_error_code": provider_error.get("code"),
                 "provider_error_status": provider_error.get("status"),
+                "provider_error_reason": error_info.get("reason"),
                 "provider_error_message": message,
                 "provider_error_details": error_details,
                 "response_metadata": metadata,
@@ -168,6 +170,11 @@ class GeminiProvider:
                 response_body=safe_raw_body,
                 response_metadata=metadata,
                 request_duration_ms=duration_ms,
+                provider_error_type=provider_error.get("type") or provider_error.get("@type") or detail_type,
+                provider_error_code=provider_error.get("code"),
+                provider_error_status=provider_error.get("status"),
+                provider_error_message=message,
+                provider_error_details=error_details,
             )
 
         try:
@@ -239,6 +246,26 @@ class GeminiProvider:
         safe = re.sub(r"(?i)(api[_ -]?key\s*[:=]\s*)[^\s,;]+", r"\1[REDACTED]", safe)
         safe = re.sub(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s,;]+", r"\1[REDACTED]", safe)
         return safe
+
+    @staticmethod
+    def _extract_provider_error(payload) -> dict:
+        """Normalize Gemini/proxy error bodies returned as objects or arrays."""
+        if isinstance(payload, list):
+            for item in payload:
+                error = GeminiProvider._extract_provider_error(item)
+                if error:
+                    return error
+            return {}
+        if not isinstance(payload, dict):
+            return {}
+        nested_error = payload.get("error")
+        if isinstance(nested_error, dict):
+            return nested_error
+        if isinstance(nested_error, list):
+            return GeminiProvider._extract_provider_error(nested_error)
+        if any(field in payload for field in ("code", "message", "status", "details", "errors", "detail")):
+            return payload
+        return {}
 
     @staticmethod
     def _one_line(value: str) -> str:

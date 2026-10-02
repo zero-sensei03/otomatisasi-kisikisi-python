@@ -21,6 +21,11 @@ class AIProviderHTTPError(AIProviderError):
         response_body: str | None = None,
         response_metadata: dict | None = None,
         request_duration_ms: int | None = None,
+        provider_error_type: str | None = None,
+        provider_error_code: str | int | None = None,
+        provider_error_status: str | None = None,
+        provider_error_message: str | None = None,
+        provider_error_details: str | None = None,
     ):
         super().__init__(message)
         self.status_code = status_code
@@ -29,3 +34,8 @@ class AIProviderHTTPError(AIProviderError):
         self.response_body = response_body
         self.response_metadata = response_metadata or {}
         self.request_duration_ms = request_duration_ms
+        self.provider_error_type = provider_error_type
+        self.provider_error_code = provider_error_code
+        self.provider_error_status = provider_error_status
+        self.provider_error_message = provider_error_message
+        self.provider_error_details = provider_error_details

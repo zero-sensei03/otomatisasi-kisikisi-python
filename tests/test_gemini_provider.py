@@ -90,14 +90,16 @@ def test_gemini_http_error_preserves_provider_body_and_redacts_key(monkeypatch, 
     def fake_post(url, **_kwargs):
         return httpx.Response(
             400,
-            json={
-                "error": {
-                    "code": 400,
-                    "status": "INVALID_ARGUMENT",
-                    "message": f"Invalid request for key={key}",
-                    "details": [{"field": "response_format"}],
+            json=[
+                {
+                    "error": {
+                        "code": 400,
+                        "status": "INVALID_ARGUMENT",
+                        "message": f"Invalid request for key={key}",
+                        "details": [{"field": "response_format", "reason": "BAD_FIELD"}],
+                    }
                 }
-            },
+            ],
             request=httpx.Request("POST", url),
         )
 
@@ -109,6 +111,10 @@ def test_gemini_http_error_preserves_provider_body_and_redacts_key(monkeypatch, 
     error = captured.value
     assert error.status_code == 400
     assert error.retryable is False
+    assert error.provider_error_code == 400
+    assert error.provider_error_status == "INVALID_ARGUMENT"
+    assert error.provider_error_message == "Invalid request for key=[REDACTED]"
+    assert "BAD_FIELD" in error.provider_error_details
     assert "INVALID_ARGUMENT" in error.diagnostic
     assert "response_format" in error.response_body
     assert key not in error.diagnostic
