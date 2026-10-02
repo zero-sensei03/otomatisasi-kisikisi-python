@@ -11,7 +11,8 @@ class AIResponseError(AIProviderError):
 
 
 class AIProviderHTTPError(AIProviderError):
-    def __init__(self, status_code: int, message: str, *, retryable: bool):
+    def __init__(self, status_code: int, message: str, *, retryable: bool, diagnostic: str | None = None):
         super().__init__(message)
         self.status_code = status_code
         self.retryable = retryable
+        self.diagnostic = diagnostic

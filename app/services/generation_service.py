@@ -209,7 +209,7 @@ class GenerationService:
                     if attempt == 2:
                         raise
                 except AIProviderHTTPError as exc:
-                    log_generation_event(generation.id, stage, "provider_http_error", attempt=attempt + 1, status_code=exc.status_code, retryable=exc.retryable, retrying=exc.retryable and attempt < 2)
+                    log_generation_event(generation.id, stage, "provider_http_error", attempt=attempt + 1, status_code=exc.status_code, retryable=exc.retryable, retrying=exc.retryable and attempt < 2, diagnostic=(exc.diagnostic or "not-provided")[:600].replace("\n", " "))
                     if not exc.retryable or attempt == 2:
                         raise
                 except Exception as exc:

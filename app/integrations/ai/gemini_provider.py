@@ -31,7 +31,7 @@ class GeminiProvider:
             raise AIConfigurationError("GEMINI_API_KEY belum dikonfigurasi.")
 
     def generate(self, request: AIGenerationRequest, *, repair: bool = False, repair_context: dict | None = None) -> AIGenerationResponse:
-        url = "https://generativelanguage.googleapis.com/v1beta/interactions"
+        url = "https://generativelanguage.googleapis.com/v1/interactions"
         input_text = build_generation_prompt(request, repair=repair, repair_context=repair_context)
         request_payload = {
             "model": self.model,
@@ -49,17 +49,26 @@ class GeminiProvider:
 
         if response.is_error:
             message = response.reason_phrase
+            provider_status = None
+            provider_code = None
             try:
                 error_data = response.json().get("error", {})
                 message = error_data.get("message") or message
+                provider_status = error_data.get("status")
+                provider_code = error_data.get("code")
             except (ValueError, AttributeError):
                 pass
             message = str(message).replace(self.api_key, "[REDACTED]")
+            message = re.sub(r"(?i)(api[_ -]?key\s*[:=]\s*)\S+", r"\1[REDACTED]", message)
+            message = re.sub(r"(?i)(bearer\s+)\S+", r"\1[REDACTED]", message)
+            message = " ".join(message.split())[:500]
+            diagnostic = f"status={provider_status or 'unknown'} code={provider_code or response.status_code} message={message}"
             retryable = response.status_code == 429 or response.status_code >= 500
             raise AIProviderHTTPError(
                 response.status_code,
-                f"Gemini API HTTP {response.status_code}: {message}",
+                f"Gemini API HTTP {response.status_code}",
                 retryable=retryable,
+                diagnostic=diagnostic,
             )
 
         try:

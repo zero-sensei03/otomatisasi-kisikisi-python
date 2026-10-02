@@ -102,7 +102,7 @@ ADMIN_PASSWORD=GANTI_DENGAN_PASSWORD_ADMIN_KUAT
 ADMIN_NAME=Administrator
 
 AI_PROVIDER=gemini
-AI_MODEL=gemini-3.5-flash-lite
+AI_MODEL=gemini-3.1-flash-lite
 GEMINI_API_KEY=ISI_API_KEY_DARI_GOOGLE_AI_STUDIO
 ```
 
@@ -170,7 +170,7 @@ Provider dipilih dari `AI_PROVIDER`. Provider yang terpasang saat ini adalah Gem
 
 ```dotenv
 AI_PROVIDER=gemini
-AI_MODEL=gemini-3.5-flash-lite
+AI_MODEL=gemini-3.1-flash-lite
 GEMINI_API_KEY=...
 ```
 
@@ -272,7 +272,7 @@ ADMIN_EMAIL=admin@domain-anda.id
 ADMIN_PASSWORD=PASSWORD_ADMIN_KUAT
 ADMIN_NAME=Administrator
 AI_PROVIDER=gemini
-AI_MODEL=gemini-3.5-flash-lite
+AI_MODEL=gemini-3.1-flash-lite
 GEMINI_API_KEY=API_KEY_GEMINI_MILIK_SERVER
 ```
 
