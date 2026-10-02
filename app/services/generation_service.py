@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import logging
 import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -15,9 +15,22 @@ from app.integrations.ai.factory import AIProviderFactory
 from app.integrations.ai.schemas import AIGenerationRequest, QuestionDistribution
 from app.integrations.material.extractor import MaterialExtractor
 from app.integrations.references.content_service import ReferenceContentService
-from app.models.generation import (Generation, GenerationBlueprint, GenerationQuestion, GenerationQuestionOption, GenerationQuestionType, GenerationReference, GenerationStatus, GenerationUsage, MaterialType)
+from app.models.generation import (
+    Generation,
+    GenerationBlueprint,
+    GenerationQuestion,
+    GenerationQuestionOption,
+    GenerationQuestionType,
+    GenerationReference,
+    GenerationStatus,
+    GenerationUsage,
+    MaterialType,
+)
 from app.models.user import User
-from app.repositories.generation_repository import GenerationRepository, GenerationSettingRepository
+from app.repositories.generation_repository import (
+    GenerationRepository,
+    GenerationSettingRepository,
+)
 from app.schemas.generation import GenerationCreateSchema
 from app.services.audit_service import AuditService
 
@@ -57,7 +70,7 @@ class GenerationService:
         return value
 
     def quota(self, user_id):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         day_end = day_start + timedelta(days=1)
         usage_filter = (GenerationUsage.user_id == user_id, GenerationUsage.created_at >= day_start, GenerationUsage.created_at < day_end)
@@ -120,7 +133,7 @@ class GenerationService:
         log_generation_event(generation.id, "database", "pending_saved")
         self.audit.log(action="GENERATION_STARTED", feature="GENERATION", user_id=user.id, resource="GENERATION", resource_id=str(generation.id), ip_address=ip_address, user_agent=user_agent)
         generation.status = GenerationStatus.PROCESSING
-        generation.started_at = datetime.now(timezone.utc)
+        generation.started_at = datetime.now(UTC)
         self.db.commit()
         log_generation_event(generation.id, "database", "processing_saved")
         stage = "material_settings"
@@ -186,7 +199,7 @@ class GenerationService:
                 stage = "ai_request"
                 log_generation_event(generation.id, stage, "started", attempt=attempt + 1, repair=attempt > 0, provider=provider.name, model=provider.model)
                 try:
-                    candidate = provider.generate(request, repair=attempt > 0, repair_context=repair_context)
+                    candidate = provider.generate(request, repair=attempt > 0, repair_context=repair_context, generation_id=str(generation.id), attempt=attempt + 1)
                     log_generation_event(generation.id, stage, "response_received", attempt=attempt + 1, question_count=len(candidate.questions), blueprint_count=len(candidate.blueprint))
                     counts = {"MULTIPLE_CHOICE": 0, "SHORT_ANSWER": 0, "ESSAY": 0}
                     for question in candidate.questions:
@@ -209,7 +222,7 @@ class GenerationService:
                     if attempt == 2:
                         raise
                 except AIProviderHTTPError as exc:
-                    log_generation_event(generation.id, stage, "provider_http_error", attempt=attempt + 1, status_code=exc.status_code, retryable=exc.retryable, retrying=exc.retryable and attempt < 2, diagnostic=(exc.diagnostic or "not-provided")[:600].replace("\n", " "))
+                    log_generation_event(generation.id, stage, "provider_http_error", attempt=attempt + 1, status_code=exc.status_code, retryable=exc.retryable, retrying=exc.retryable and attempt < 2, request_duration_ms=exc.request_duration_ms, response_metadata=exc.response_metadata, diagnostic=(exc.diagnostic or "not-provided")[:10_000].replace("\n", " "))
                     if not exc.retryable or attempt == 2:
                         raise
                 except Exception as exc:
@@ -242,7 +255,7 @@ class GenerationService:
             self.db.add(GenerationUsage(user_id=user.id, generation_id=generation.id, free_generation_used=1, cost=generation.generation_cost))
             log_generation_event(generation.id, stage, "recorded")
             generation.status = GenerationStatus.COMPLETED
-            generation.completed_at = datetime.now(timezone.utc)
+            generation.completed_at = datetime.now(UTC)
             generation.error_message = None
             self.audit.log(action="GENERATION_COMPLETED", feature="GENERATION", user_id=user.id, resource="GENERATION", resource_id=str(generation.id), ip_address=ip_address, user_agent=user_agent)
             log_generation_event(generation.id, "audit", "completed")
@@ -250,6 +263,12 @@ class GenerationService:
             log_generation_event(generation.id, "generation", "completed", provider=provider.name, model=provider.model)
             return generation
         except Exception as exc:
+            logger.exception(
+                "generation id=%s stage=%s event=exception error_type=%s",
+                generation.id,
+                stage,
+                type(exc).__name__,
+            )
             log_generation_event(
                 generation.id,
                 stage,
@@ -263,7 +282,7 @@ class GenerationService:
             if generation:
                 generation.status = GenerationStatus.FAILED
                 generation.error_message = "Generation gagal. Silakan coba kembali."
-                generation.completed_at = datetime.now(timezone.utc)
+                generation.completed_at = datetime.now(UTC)
                 self.audit.log(action="GENERATION_FAILED", feature="GENERATION", user_id=user.id, resource="GENERATION", resource_id=str(generation.id), description="Generation gagal.", ip_address=ip_address, user_agent=user_agent)
                 self.db.commit()
                 log_generation_event(generation.id, "generation", "failed", persisted_status=generation.status.value)

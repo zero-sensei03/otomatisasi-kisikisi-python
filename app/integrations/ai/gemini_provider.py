@@ -1,6 +1,9 @@
 import json
 import logging
+import platform
 import re
+import time
+from hashlib import sha256
 
 import httpx
 from pydantic import ValidationError
@@ -17,6 +20,8 @@ from app.integrations.ai.settings import AISettings
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions"
+MAX_LOGGED_ERROR_BODY = 8_000
 
 
 class GeminiProvider:
@@ -26,64 +31,168 @@ class GeminiProvider:
         settings = AISettings()
         self.api_key = settings.gemini_api_key.strip()
         self.model = settings.ai_model.strip()
-        logger.info("Gemini configuration model=%s api_key_configured=%s", self.model or "unset", bool(self.api_key))
+        self.timeout_seconds = settings.ai_timeout_seconds
+        logger.info(
+            "Gemini configuration provider=gemini model=%s api_key_configured=%s api_key_length=%s "
+            "sdk=REST/httpx httpx_version=%s python_version=%s endpoint=%s api_version=v1beta timeout_seconds=%s",
+            self.model or "unset",
+            bool(self.api_key),
+            len(self.api_key),
+            httpx.__version__,
+            platform.python_version(),
+            GEMINI_ENDPOINT,
+            self.timeout_seconds,
+        )
         if not self.api_key:
             raise AIConfigurationError("GEMINI_API_KEY belum dikonfigurasi.")
 
-    def generate(self, request: AIGenerationRequest, *, repair: bool = False, repair_context: dict | None = None) -> AIGenerationResponse:
-        url = "https://generativelanguage.googleapis.com/v1/interactions"
+    def generate(self, request: AIGenerationRequest, *, repair: bool = False, repair_context: dict | None = None, generation_id: str | None = None, attempt: int = 1) -> AIGenerationResponse:
+        correlation_id = generation_id or "untracked"
+        logger.info("generation id=%s stage=prompt event=construction_started attempt=%s repair=%s", correlation_id, attempt, repair)
         input_text = build_generation_prompt(request, repair=repair, repair_context=repair_context)
+        logger.info(
+            "generation id=%s stage=prompt event=constructed character_count=%s sha256=%s "
+            "prompt_preview=%r preview_scope=static_instructions_only",
+            correlation_id,
+            len(input_text),
+            sha256(input_text.encode("utf-8")).hexdigest(),
+            input_text.partition("Input:")[0][:1_000],
+        )
         request_payload = {
             "model": self.model,
             "input": input_text,
             "response_format": {"type": "text", "mime_type": "application/json"},
             "store": False,
         }
+        logger.info(
+            "generation id=%s stage=ai_request event=request_configuration attempt=%s endpoint=%s api_version=v1beta "
+            "provider=gemini model=%s sdk=REST/httpx httpx_version=%s timeout_seconds=%s "
+            "prompt_character_count=%s system_instruction=none generation_config=none tools=none safety_settings=none "
+            "response_format=%s structured_schema=none post_response_schema_validation=Pydantic request_fields=%s",
+            correlation_id,
+            attempt,
+            GEMINI_ENDPOINT,
+            self.model,
+            httpx.__version__,
+            self.timeout_seconds,
+            len(input_text),
+            json.dumps(request_payload["response_format"], separators=(",", ":")),
+            ",".join(request_payload.keys()),
+        )
+        logger.info("generation id=%s stage=ai_request event=request_started attempt=%s", correlation_id, attempt)
+        request_started = time.perf_counter()
         try:
-            response = httpx.post(url, headers={
+            response = httpx.post(GEMINI_ENDPOINT, headers={
                 "x-goog-api-key": self.api_key,
                 "Content-Type": "application/json",
-            }, json=request_payload, timeout=90.0)
+            }, json=request_payload, timeout=self.timeout_seconds)
         except httpx.HTTPError as exc:
-            raise AIProviderError("Koneksi ke Gemini API gagal.") from exc
+            duration_ms = int((time.perf_counter() - request_started) * 1000)
+            logger.exception(
+                "generation id=%s stage=ai_request event=transport_exception provider=gemini model=%s "
+                "endpoint=%s request_duration_ms=%s exception_type=%s",
+                correlation_id,
+                self.model,
+                GEMINI_ENDPOINT,
+                duration_ms,
+                type(exc).__name__,
+            )
+            raise AIProviderError(f"Koneksi ke Gemini API gagal ({type(exc).__name__}).") from exc
+
+        duration_ms = int((time.perf_counter() - request_started) * 1000)
+        metadata = {
+            "content_type": response.headers.get("content-type"),
+            "request_id": response.headers.get("x-request-id") or response.headers.get("x-goog-request-id"),
+            "server": response.headers.get("server"),
+        }
+        logger.info(
+            "generation id=%s stage=ai_request event=response_received attempt=%s provider=gemini model=%s "
+            "endpoint=%s http_status=%s request_duration_ms=%s response_metadata=%s",
+            correlation_id,
+            attempt,
+            self.model,
+            GEMINI_ENDPOINT,
+            response.status_code,
+            duration_ms,
+            json.dumps(metadata, ensure_ascii=False, separators=(",", ":")),
+        )
 
         if response.is_error:
-            message = response.reason_phrase
-            provider_status = None
-            provider_code = None
+            raw_body = response.text
+            parsed_error = None
             try:
-                error_data = response.json().get("error", {})
-                message = error_data.get("message") or message
-                provider_status = error_data.get("status")
-                provider_code = error_data.get("code")
-            except (ValueError, AttributeError):
+                parsed_error = response.json()
+            except ValueError:
                 pass
-            message = str(message).replace(self.api_key, "[REDACTED]")
-            message = re.sub(r"(?i)(api[_ -]?key\s*[:=]\s*)\S+", r"\1[REDACTED]", message)
-            message = re.sub(r"(?i)(bearer\s+)\S+", r"\1[REDACTED]", message)
-            message = " ".join(message.split())[:500]
-            diagnostic = f"status={provider_status or 'unknown'} code={provider_code or response.status_code} message={message}"
+            provider_error = parsed_error.get("error", parsed_error) if isinstance(parsed_error, dict) else {}
+            if not isinstance(provider_error, dict):
+                provider_error = {"value": provider_error}
+            message = self._redact_secrets(self._one_line(str(provider_error.get("message") or provider_error.get("detail") or response.reason_phrase)))
+            safe_raw_body = self._redact_secrets(raw_body)[:MAX_LOGGED_ERROR_BODY]
+            error_details = self._redact_secrets(json.dumps(provider_error.get("details") or provider_error.get("errors"), ensure_ascii=False, default=str))
+            diagnostic_data = {
+                "provider_error_type": provider_error.get("type") or provider_error.get("@type") or provider_error.get("reason"),
+                "provider_error_code": provider_error.get("code"),
+                "provider_error_status": provider_error.get("status"),
+                "provider_error_message": message,
+                "provider_error_details": error_details,
+                "response_metadata": metadata,
+                "response_body": safe_raw_body,
+                "response_body_truncated": len(raw_body) > MAX_LOGGED_ERROR_BODY,
+            }
+            diagnostic = json.dumps(diagnostic_data, ensure_ascii=False, default=str, separators=(",", ":"))
             retryable = response.status_code == 429 or response.status_code >= 500
+            logger.error(
+                "generation id=%s stage=ai_request event=provider_http_error attempt=%s provider=gemini model=%s "
+                "endpoint=%s attempt_duration_ms=%s status_code=%s provider_error_code=%s "
+                "provider_error_status=%s provider_error_message=%s provider_error_details=%s "
+                "response_body=%s response_metadata=%s",
+                correlation_id,
+                attempt,
+                self.model,
+                GEMINI_ENDPOINT,
+                duration_ms,
+                response.status_code,
+                provider_error.get("code"),
+                provider_error.get("status"),
+                self._one_line(str(message)),
+                self._one_line(error_details),
+                json.dumps(safe_raw_body, ensure_ascii=False),
+                json.dumps(metadata, ensure_ascii=False, separators=(",", ":")),
+            )
             raise AIProviderHTTPError(
                 response.status_code,
-                f"Gemini API HTTP {response.status_code}",
+                f"Gemini API HTTP {response.status_code}: {self._one_line(str(message))[:500]}",
                 retryable=retryable,
                 diagnostic=diagnostic,
+                response_body=safe_raw_body,
+                response_metadata=metadata,
+                request_duration_ms=duration_ms,
             )
 
         try:
             payload = response.json()
         except ValueError as exc:
+            logger.exception("generation id=%s stage=response_parsing event=invalid_json status_code=%s body_character_count=%s", correlation_id, response.status_code, len(response.text))
             raise AIResponseError("Gemini mengembalikan response envelope yang tidak valid.") from exc
 
         status = payload.get("status")
         steps = payload.get("steps", [])
+        logger.info(
+            "generation id=%s stage=response_parsing event=envelope_parsed status=%s step_count=%s "
+            "response_fields=%s interaction_id=%s response_model=%s usage=%s request_duration_ms=%s",
+            correlation_id,
+            status,
+            len(steps) if isinstance(steps, list) else "invalid",
+            ",".join(payload.keys()) if isinstance(payload, dict) else "non-object",
+            payload.get("id") if isinstance(payload, dict) else None,
+            payload.get("model") if isinstance(payload, dict) else None,
+            json.dumps(payload.get("usage"), ensure_ascii=False, separators=(",", ":")) if isinstance(payload, dict) and payload.get("usage") is not None else "none",
+            duration_ms,
+        )
         if status != "completed":
-            safe_error = payload.get("error")
-            if isinstance(safe_error, dict):
-                safe_error = safe_error.get("message") or safe_error.get("code")
-            if not isinstance(safe_error, str):
-                safe_error = "tidak ada detail error"
+            safe_error = self._redact_secrets(json.dumps(payload.get("errors") or payload.get("error") or {}, ensure_ascii=False, default=str))[:3000]
+            logger.error("generation id=%s stage=response_parsing event=interaction_not_completed status=%s errors=%s", correlation_id, status, safe_error)
             raise AIResponseError(f"Gemini interaction status={status}: {safe_error[:500]}")
 
         text_parts = [
@@ -98,23 +207,39 @@ class GeminiProvider:
             raise AIResponseError(f"Gemini selesai tanpa output teks (step_types={step_types}).")
 
         text = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", "\n".join(text_parts), flags=re.IGNORECASE)
+        logger.info("generation id=%s stage=response_parsing event=text_extracted character_count=%s", correlation_id, len(text))
         try:
             data = json.loads(text)
         except json.JSONDecodeError as exc:
             feedback = f"JSON tidak valid pada baris {exc.lineno}, kolom {exc.colno}: {exc.msg}"
+            logger.exception("generation id=%s stage=json_parsing event=invalid_json response_character_count=%s", correlation_id, len(text))
             raise AIResponseError(
                 "Output Gemini bukan JSON valid.",
                 repair_context={"previous_response": text, "feedback": feedback},
             ) from exc
         try:
-            return AIGenerationResponse.model_validate(data)
+            result = AIGenerationResponse.model_validate(data)
+            logger.info("generation id=%s stage=response_validation event=valid question_count=%s blueprint_count=%s", correlation_id, len(result.questions), len(result.blueprint))
+            return result
         except ValidationError as exc:
             errors = exc.errors(include_input=False)
             feedback = "; ".join(
                 f"{'.'.join(str(part) for part in item['loc'])}: {item['type']}"
                 for item in errors[:20]
             )
+            logger.error("generation id=%s stage=response_validation event=invalid fields=%s", correlation_id, feedback)
             raise AIResponseError(
                 "Output Gemini tidak sesuai kontrak AI.",
                 repair_context={"previous_response": text, "feedback": feedback},
             ) from exc
+
+    def _redact_secrets(self, value: str) -> str:
+        safe = value.replace(self.api_key, "[REDACTED]") if self.api_key else value
+        safe = re.sub(r"(?i)(x-goog-api-key\s*[:=]\s*)[^\s,;]+", r"\1[REDACTED]", safe)
+        safe = re.sub(r"(?i)(api[_ -]?key\s*[:=]\s*)[^\s,;]+", r"\1[REDACTED]", safe)
+        safe = re.sub(r"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s,;]+", r"\1[REDACTED]", safe)
+        return safe
+
+    @staticmethod
+    def _one_line(value: str) -> str:
+        return " ".join(value.split())
