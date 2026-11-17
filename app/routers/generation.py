@@ -1,3 +1,4 @@
+import json
 import logging
 import math
 import re
@@ -5,24 +6,48 @@ import uuid
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_current_user, get_database, require_csrf, require_roles
 from app.core.config import get_settings
+from app.core.cognitive_levels import ACTIVE_COGNITIVE_LEVELS, COGNITIVE_LEVEL_LABELS
+from app.core.dependencies import (
+    get_current_user,
+    get_database,
+    require_csrf,
+    require_roles,
+)
 from app.core.security import generate_csrf_token, sign_csrf_token
-from app.integrations.exports.docx import TEMPLATES as DOCX_TEMPLATES, build_generation_docx
-from app.models.generation import GenerationSetting
+from app.integrations.exports.docx import TEMPLATES as DOCX_TEMPLATES
+from app.integrations.exports.docx import build_generation_docx
+from app.models.generation import Generation, GenerationSetting, GenerationStatus, MaterialType
 from app.models.teacher import Teacher
 from app.models.user import User, UserRole
 from app.schemas.auth import PasswordChangeSchema, UserUpdateSchema
-from app.schemas.generation import GenerationCreateSchema
+from app.schemas.generation import GenerationCreateSchema, GenerationSettingsSchema
 from app.services.auth_service import AuthService
-from app.services.generation_service import GenerationService
+from app.services.generation_service import GenerationService, generation_error_title, generation_user_error
+from app.services.generation_runner import generation_runner
 
 router = APIRouter(tags=["Generation"])
 templates = Jinja2Templates(directory="app/templates")
@@ -38,6 +63,18 @@ def csrf_context():
 
 def request_meta(request):
     return request.client.host if request.client else None, request.headers.get("user-agent")
+
+
+def format_ai_duration(duration_ms: int | None) -> str:
+    if duration_ms is None:
+        return "Belum tersedia"
+    if duration_ms < 1000:
+        return f"{duration_ms} ms"
+    total_seconds = duration_ms / 1000
+    if duration_ms < 60_000:
+        return f"{total_seconds:.2f}".replace(".", ",") + " detik"
+    minutes, seconds = divmod(total_seconds, 60)
+    return f"{int(minutes)} menit {seconds:05.2f}".replace(".", ",") + " detik"
 
 
 @router.get("/generation", response_class=HTMLResponse)
@@ -58,33 +95,117 @@ def create_page(request: Request, retry_from: uuid.UUID | None = Query(None), db
             raise HTTPException(status_code=403, detail="Anda tidak dapat mengulang generation milik pengguna lain.")
         if previous.status.value != "FAILED":
             raise HTTPException(status_code=409, detail="Generation ini tidak berstatus gagal.")
-        form = {"title": previous.title, "description": previous.description or "", "subject": previous.subject, "class_name": previous.class_name, "type_materi": previous.type_materi.value, "materi_text": previous.material_text, "references": [item.url for item in previous.references], "total_multiple_choice": previous.total_multiple_choice, "total_short_answer": previous.total_short_answer, "total_essay": previous.total_essay}
+        old_levels = json.loads(previous.cognitive_levels or '[]')
+        selected_levels = [level for level in old_levels if level in ACTIVE_COGNITIVE_LEVELS] or list(ACTIVE_COGNITIVE_LEVELS)
+        form = {"title": previous.title, "description": previous.description or "", "subject": previous.subject, "class_name": previous.class_name, "type_materi": previous.type_materi.value, "materi_text": previous.material_text, "references": [item.url for item in previous.references], "cognitive_levels": selected_levels, "total_multiple_choice": previous.total_multiple_choice, "total_short_answer": previous.total_short_answer, "total_essay": previous.total_essay}
         if not previous.material_text.strip():
             notice = "Materi dari percobaan lama tidak tersimpan. Masukkan kembali materi atau unggah ulang file untuk mencoba lagi."
-    return templates.TemplateResponse(request=request, name="pages/generation/create.html", context={"current_user": user, "quota": service.quota(user.id), "csrf": csrf_context(), "error": None, "form": form, "notice": notice})
+    return templates.TemplateResponse(request=request, name="pages/generation/create.html", context={"current_user": user, "quota": service.quota(user.id), "csrf": csrf_context(), "error": None, "form": form, "notice": notice, "active_cognitive_levels": ACTIVE_COGNITIVE_LEVELS, "cognitive_level_labels": COGNITIVE_LEVEL_LABELS})
 
 
 @router.post("/generation", response_class=HTMLResponse)
-def create_generation(request: Request, title: str = Form(...), description: str | None = Form(None), subject: str = Form(...), class_name: str = Form(...), type_materi: str = Form(...), materi_text: str | None = Form(None), references: list[str] = Form(default=[]), total_multiple_choice: int = Form(0), total_short_answer: int = Form(0), total_essay: int = Form(0), materi_file: UploadFile | None = File(None), db: Session = Depends(get_database), user: User = Depends(get_current_user), _: None = Depends(require_csrf)):
-    logger.info("generation stage=request event=submitted user_id=%s", user.id)
+def create_generation(request: Request, title: str = Form(...), description: str | None = Form(None), subject: str = Form(...), class_name: str = Form(...), type_materi: str = Form(...), materi_text: str | None = Form(None), references: list[str] = Form(default=[]), cognitive_levels: list[str] = Form(default=[]), total_multiple_choice: int = Form(0), total_short_answer: int = Form(0), total_essay: int = Form(0), materi_file: UploadFile | None = File(None), db: Session = Depends(get_database), user: User = Depends(get_current_user), _: None = Depends(require_csrf)):
     try:
-        schema = GenerationCreateSchema(title=title, description=description, subject=subject, class_name=class_name, type_materi=type_materi, materi_text=materi_text, references=references, total_multiple_choice=total_multiple_choice, total_short_answer=total_short_answer, total_essay=total_essay)
+        schema = GenerationCreateSchema(title=title, description=description, subject=subject, class_name=class_name, type_materi=type_materi, materi_text=materi_text, references=references, cognitive_levels=cognitive_levels, total_multiple_choice=total_multiple_choice, total_short_answer=total_short_answer, total_essay=total_essay)
         ip, agent = request_meta(request)
-        generation = GenerationService(db).create(schema, user, upload=materi_file, ip_address=ip, user_agent=agent)
-        if generation.status.value == "FAILED":
-            return RedirectResponse(f"/generation/{generation.id}?error=Generation%20gagal.%20Silakan%20coba%20kembali.", status_code=303)
-        return RedirectResponse(f"/generation/{generation.id}", status_code=303)
+        service = GenerationService(db)
+        service.validate_start(schema, user, upload=materi_file)
+        upload_bytes = None
+        if schema.type_materi == "FILE":
+            maximum_file_size = get_settings().max_upload_size
+            if materi_file.size is not None and materi_file.size > maximum_file_size:
+                raise HTTPException(status_code=422, detail="Ukuran file melebihi batas upload.")
+            materi_file.file.seek(0)
+            upload_bytes = materi_file.file.read(maximum_file_size + 1)
+            if not upload_bytes:
+                raise HTTPException(status_code=422, detail="File materi kosong.")
+            if len(upload_bytes) > maximum_file_size:
+                raise HTTPException(status_code=422, detail="Ukuran file melebihi batas upload.")
+        elif len((schema.materi_text or "").strip()) > int(service.setting("generation.max_material_characters")):
+            raise HTTPException(status_code=422, detail="Materi melebihi batas karakter generation. Ringkas materi lalu coba kembali.")
+
+        generation_id = uuid.uuid4()
+        logger.info("[GEN:%s] Stage: request_initialization - ACCEPTED user_id=%s input_type=%s reference_count=%s", generation_id, user.id, schema.type_materi, len(schema.references))
+        initial_progress = {
+            "status": "PENDING",
+            "current_stage": "request_initialization",
+            "input_type": schema.type_materi,
+            "reference_count": len(schema.references),
+            "started_at": None,
+            "total_duration_ms": 0,
+            "stages": [{"id": "request_initialization", "status": "PENDING"}],
+        }
+        generation = Generation(
+            id=generation_id,
+            user_id=user.id,
+            title=schema.title.strip(),
+            description=schema.description,
+            subject=schema.subject.strip(),
+            class_name=schema.class_name.strip(),
+            type_materi=MaterialType(schema.type_materi),
+            material_text=(schema.materi_text or "").strip() if schema.type_materi == "TEXT" else "",
+            status=GenerationStatus.PENDING,
+            total_multiple_choice=schema.total_multiple_choice,
+            total_short_answer=schema.total_short_answer,
+            total_essay=schema.total_essay,
+            total_questions=schema.total_multiple_choice + schema.total_short_answer + schema.total_essay,
+            cognitive_levels=json.dumps(schema.cognitive_levels),
+            progress_json=json.dumps(initial_progress, ensure_ascii=False),
+        )
+        service.repository.add(generation)
+        service.audit.log(action="GENERATION_CREATED", feature="GENERATION", user_id=user.id, resource="GENERATION", resource_id=str(generation.id), ip_address=ip, user_agent=agent)
+        db.commit()
+        generation_runner.submit(
+            generation.id,
+            user.id,
+            schema,
+            upload_bytes=upload_bytes,
+            upload_name=materi_file.filename if materi_file else None,
+            upload_mime=materi_file.content_type if materi_file else None,
+            ip_address=ip,
+            user_agent=agent,
+        )
+        logger.info("[GEN:%s] Stage: request_initialization - QUEUED", generation.id)
+        return RedirectResponse(f"/generation/{generation.id}/progress", status_code=303)
     except (ValidationError, ValueError, HTTPException) as exc:
         logger.warning("generation stage=request_validation event=rejected user_id=%s error_type=%s status_code=%s", user.id, type(exc).__name__, getattr(exc, "status_code", 422))
         db.rollback()
         error = exc.errors()[0]["msg"] if isinstance(exc, ValidationError) else getattr(exc, "detail", str(exc))
-        return templates.TemplateResponse(request=request, name="pages/generation/create.html", context={"current_user": user, "quota": GenerationService(db).quota(user.id), "csrf": csrf_context(), "error": error, "form": {"title": title, "description": description or "", "subject": subject, "class_name": class_name, "type_materi": type_materi, "materi_text": materi_text or "", "references": references, "total_multiple_choice": total_multiple_choice, "total_short_answer": total_short_answer, "total_essay": total_essay}}, status_code=422)
+        return templates.TemplateResponse(request=request, name="pages/generation/create.html", context={"current_user": user, "quota": GenerationService(db).quota(user.id), "csrf": csrf_context(), "error": error, "form": {"title": title, "description": description or "", "subject": subject, "class_name": class_name, "type_materi": type_materi, "materi_text": materi_text or "", "references": references, "cognitive_levels": cognitive_levels, "total_multiple_choice": total_multiple_choice, "total_short_answer": total_short_answer, "total_essay": total_essay}, "active_cognitive_levels": ACTIVE_COGNITIVE_LEVELS, "cognitive_level_labels": COGNITIVE_LEVEL_LABELS}, status_code=422)
 
 
 @router.get("/generation/{generation_id}", response_class=HTMLResponse)
 def generation_detail(request: Request, generation_id: uuid.UUID, db: Session = Depends(get_database), user: User = Depends(get_current_user)):
     generation = GenerationService(db).detail(generation_id, user)
-    return templates.TemplateResponse(request=request, name="pages/generation/detail.html", context={"current_user": user, "generation": generation, "csrf": csrf_context(), "is_owner": generation.user_id == user.id, "error": request.query_params.get("error"), "docx_templates": DOCX_TEMPLATES})
+    if generation.status in {GenerationStatus.PENDING, GenerationStatus.PROCESSING}:
+        return RedirectResponse(f"/generation/{generation.id}/progress", status_code=303)
+    return templates.TemplateResponse(request=request, name="pages/generation/detail.html", context={"current_user": user, "generation": generation, "csrf": csrf_context(), "is_owner": generation.user_id == user.id, "error": request.query_params.get("error"), "docx_templates": DOCX_TEMPLATES, "format_ai_duration": format_ai_duration})
+
+
+@router.get("/generation/{generation_id}/progress", response_class=HTMLResponse)
+def generation_progress_page(request: Request, generation_id: uuid.UUID, db: Session = Depends(get_database), user: User = Depends(get_current_user)):
+    generation = GenerationService(db).detail(generation_id, user)
+    return templates.TemplateResponse(request=request, name="pages/generation/progress.html", context={"current_user": user, "generation": generation, "csrf": csrf_context()})
+
+
+@router.get("/generation/{generation_id}/progress/status")
+def generation_progress_status(generation_id: uuid.UUID, db: Session = Depends(get_database), user: User = Depends(get_current_user)):
+    generation = GenerationService(db).detail(generation_id, user)
+    try:
+        progress = json.loads(generation.progress_json or "{}")
+    except json.JSONDecodeError:
+        progress = {}
+    elapsed_ms = progress.get("total_duration_ms") or 0
+    if generation.started_at and generation.status == GenerationStatus.PROCESSING:
+        from datetime import UTC, datetime
+        started_at = generation.started_at
+        if started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=UTC)
+        elapsed_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
+    error = None
+    if generation.status == GenerationStatus.FAILED:
+        error = generation.error_message or generation_user_error(RuntimeError("Missing failure detail"))
+    return {"id": str(generation.id), "status": generation.status.value, "title": generation.title, "progress": progress, "total_duration_ms": elapsed_ms, "question_count": len(generation.questions), "error": error, "error_title": generation_error_title(error) if error else None, "result_url": f"/generation/{generation.id}" if generation.status == GenerationStatus.COMPLETED else None}
 
 
 @router.get("/generation/{generation_id}/edit", response_class=HTMLResponse)
@@ -126,14 +247,15 @@ def update_generation_metadata(generation_id: uuid.UUID, title: str = Form(...),
 def retry_generation(request: Request, generation_id: uuid.UUID, db: Session = Depends(get_database), user: User = Depends(get_current_user), _: None = Depends(require_csrf)):
     ip, agent = request_meta(request)
     try:
-        generation = GenerationService(db).retry(generation_id, user, ip_address=ip, user_agent=agent)
-        if generation.status.value == "FAILED":
-            return RedirectResponse(f"/generation/{generation.id}?error=Generation%20gagal.%20Silakan%20coba%20kembali.", status_code=303)
-        return RedirectResponse(f"/generation/{generation.id}", status_code=303)
+        generation, data = GenerationService(db).prepare_retry(generation_id, user, ip_address=ip, user_agent=agent)
+        generation_runner.submit(generation.id, user.id, data, upload_bytes=None, upload_name=None, upload_mime=None, ip_address=ip, user_agent=agent)
+        return RedirectResponse(f"/generation/{generation.id}/progress", status_code=303)
     except HTTPException as exc:
         db.rollback()
         if exc.status_code == 409 and "tidak tersimpan" in str(exc.detail):
             return RedirectResponse(f"/generation/create?retry_from={generation_id}", status_code=303)
+        if exc.status_code in {403, 409, 422}:
+            return RedirectResponse(f"/generation/{generation_id}?error={quote(str(exc.detail))}", status_code=303)
         raise
 
 
@@ -181,17 +303,42 @@ def export_generation(generation_id: uuid.UUID, export_type: str, template: str 
 def generation_settings_page(request: Request, db: Session = Depends(get_database), user: User = admin_required):
     rows = db.scalars(select(GenerationSetting).order_by(GenerationSetting.key)).all()
     settings = {row.key: row.value for row in rows}
-    return templates.TemplateResponse(request=request, name="pages/admin/settings/index.html", context={"current_user": user, "settings": settings, "csrf": csrf_context(), "success": request.query_params.get("success"), "error": request.query_params.get("error")})
+    return templates.TemplateResponse(request=request, name="pages/admin/settings/index.html", context={"current_user": user, "settings": settings, "form_values": settings, "field_errors": {}, "csrf": csrf_context(), "success": request.query_params.get("success"), "error": request.query_params.get("error")})
 
 
 @router.post("/settings")
-def update_generation_settings(generation_free_limit: int = Form(..., gt=0, le=1_000_000), generation_cost_per_generate: float = Form(..., ge=0, le=1_000_000), generation_enabled: str = Form("false"), generation_max_questions_per_generate: int = Form(..., gt=0, le=500), generation_max_material_characters: int = Form(..., gt=0, le=1_000_000), generation_max_reference_characters: int = Form(..., gt=0, le=250_000), db: Session = Depends(get_database), user: User = admin_required, _: None = Depends(require_csrf)):
-    values = {"generation.free_limit": str(generation_free_limit), "generation.cost_per_generate": str(generation_cost_per_generate), "generation.enabled": "true" if generation_enabled == "true" else "false", "generation.max_questions_per_generate": str(generation_max_questions_per_generate), "generation.max_material_characters": str(generation_max_material_characters), "generation.max_reference_characters": str(generation_max_reference_characters)}
+def update_generation_settings(request: Request, generation_free_limit: str = Form(""), generation_cost_per_generate: str = Form(""), generation_enabled: str = Form("false"), generation_max_questions_per_generate: str = Form(""), generation_max_material_characters: str = Form(""), generation_max_reference_characters: str = Form(""), db: Session = Depends(get_database), user: User = admin_required, _: None = Depends(require_csrf)):
+    form_values = {"generation_free_limit": generation_free_limit, "generation_cost_per_generate": generation_cost_per_generate, "generation_enabled": generation_enabled, "generation_max_questions_per_generate": generation_max_questions_per_generate, "generation_max_material_characters": generation_max_material_characters, "generation_max_reference_characters": generation_max_reference_characters}
+    wants_json = "application/json" in request.headers.get("accept", "").lower()
+    try:
+        schema = GenerationSettingsSchema.model_validate(form_values)
+    except ValidationError as exc:
+        field_errors = {str(item["loc"][-1]): item["msg"] for item in exc.errors() if item.get("loc")}
+        general_error = "Periksa nilai pada field yang ditandai." if field_errors else "Pengaturan belum valid."
+        if wants_json:
+            return JSONResponse({"message": general_error, "errors": field_errors}, status_code=422)
+        rows = db.scalars(select(GenerationSetting).order_by(GenerationSetting.key)).all()
+        settings = {row.key: row.value for row in rows}
+        return templates.TemplateResponse(request=request, name="pages/admin/settings/index.html", context={"current_user": user, "settings": settings, "form_values": form_values, "field_errors": field_errors, "csrf": csrf_context(), "success": None, "error": general_error}, status_code=422)
+
+    values = {"generation.free_limit": str(schema.generation_free_limit), "generation.cost_per_generate": str(schema.generation_cost_per_generate), "generation.enabled": schema.generation_enabled, "generation.max_questions_per_generate": str(schema.generation_max_questions_per_generate), "generation.max_material_characters": str(schema.generation_max_material_characters), "generation.max_reference_characters": str(schema.generation_max_reference_characters)}
     for key, value in values.items():
         row = db.scalar(select(GenerationSetting).where(GenerationSetting.key == key))
         if row:
             row.value, row.is_active = value, True
-    db.commit()
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("settings update failed stage=database_persistence user_id=%s", user.id)
+        message = "Pengaturan gagal disimpan karena masalah server. Nilai yang Anda masukkan tetap tersedia."
+        if wants_json:
+            return JSONResponse({"message": message}, status_code=500)
+        rows = db.scalars(select(GenerationSetting).order_by(GenerationSetting.key)).all()
+        settings = {row.key: row.value for row in rows}
+        return templates.TemplateResponse(request=request, name="pages/admin/settings/index.html", context={"current_user": user, "settings": settings, "form_values": form_values, "field_errors": {}, "csrf": csrf_context(), "success": None, "error": message}, status_code=500)
+    if wants_json:
+        return JSONResponse({"message": "Pengaturan generation berhasil disimpan.", "settings": values}, status_code=200)
     return RedirectResponse("/settings?success=Pengaturan%20generation%20disimpan.", status_code=303)
 
 

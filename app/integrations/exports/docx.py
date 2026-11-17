@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
-import xml.etree.ElementTree as ET
-
 
 TEMPLATE_DIR = Path("app/templates/docx_templates")
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -18,6 +17,14 @@ TEMPLATES = {
     "soal_2": "Template Soal 2.docx",
     "pembahasan": "Template Pembahasan.docx",
     "kisi_kisi": "Template Kisi Kisi.docx",
+}
+COGNITIVE_LABELS = {
+    "C1": "Mengingat",
+    "C2": "Memahami",
+    "C3": "Menerapkan",
+    "C4": "Menganalisis",
+    "C5": "Mengevaluasi",
+    "C6": "Mencipta",
 }
 
 
@@ -110,25 +117,33 @@ def build_generation_docx(template_key: str, generation, *, selected: list[int] 
             table_rows = [["No.", "Soal", "Pilihan"]]
             for q in questions:
                 options = [f"{o.label}. {o.text}" for o in q.options] or ["—"]
-                table_rows.append([str(q.number), q.question, options])
+                level = getattr(q, "cognitive_level", "—")
+                table_rows.append([str(q.number), f"{level} ({COGNITIVE_LABELS.get(level, level)}) · {q.question}", options])
             body.append(_table(table_rows, widths=[720, 5000, 3880]))
         else:
             for q in questions:
-                body.append(_paragraph(f"{q.number}. {q.question}", "Heading1"))
+                level = getattr(q, "cognitive_level", "—")
+                body.append(_paragraph(f"{q.number}. {level} ({COGNITIVE_LABELS.get(level, level)}) · {q.question}", "Heading1"))
                 for option in q.options:
                     body.append(_paragraph(f"{option.label}. {option.text}"))
     elif template_key == "pembahasan":
         for q in generation.questions:
-            body.append(_paragraph(f"{q.number}. {q.question}", "Heading1"))
+            level = getattr(q, "cognitive_level", "—")
+            body.append(_paragraph(f"{q.number}. {level} ({COGNITIVE_LABELS.get(level, level)}) · {q.question}", "Heading1"))
             body.append(_paragraph(f"Jawaban: {q.answer}"))
             body.append(_paragraph(f"Pembahasan: {q.explanation}"))
     else:
+        rows = [["No", "Materi", "Indikator Soal", "Level Kognitif", "Nomor Soal"]]
         for bp in sorted(generation.blueprints, key=lambda item: item.number):
             body.append(_paragraph(f"Kisi-kisi {bp.number} · Soal {bp.question_number}", "Heading1"))
-            body.append(_paragraph(f"Topik materi: {bp.material_topic}"))
-            body.append(_paragraph(f"Tujuan pembelajaran: {bp.learning_objective}"))
-            body.append(_paragraph(f"Indikator: {bp.indicator}"))
-            body.append(_paragraph(f"Level kognitif: {bp.cognitive_level} · Kesulitan: {bp.difficulty}"))
+            rows.append([str(bp.number), bp.material_topic, bp.indicator, f"{bp.cognitive_level} ({COGNITIVE_LABELS.get(bp.cognitive_level, bp.cognitive_level)})", str(bp.question_number)])
+        body.append(_table(rows, widths=[650, 2450, 4100, 1400, 1000]))
+
+    usable_references = [reference for reference in getattr(generation, "references", []) if reference.extraction_status == "SUCCESS"]
+    if usable_references and template_key in {"materi", "soal_1", "soal_2", "kisi_kisi"}:
+        body.append(_paragraph("Sumber materi", "Heading1"))
+        for reference in usable_references:
+            body.append(_paragraph(reference.title or reference.url))
 
     sect = ET.SubElement(body, _tag("sectPr"))
     ET.SubElement(sect, _tag("pgSz"), {_tag("w"): "11906", _tag("h"): "16838"})

@@ -168,10 +168,13 @@ class UserManagementService:
                     user_id=user.id,
                     nip=data.nip,
                 )
+                user.teacher = teacher
                 self.db.add(teacher)
 
         elif user.teacher:
-            self.db.delete(user.teacher)
+            teacher = user.teacher
+            user.teacher = None
+            self.db.delete(teacher)
 
         self.db.flush()
 

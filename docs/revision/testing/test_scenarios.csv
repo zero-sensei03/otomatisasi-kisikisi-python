@@ -1,0 +1,24 @@
+Test ID,Feature,Test Scenario,Input,Expected Result,Actual Result,Status,Evidence
+BB-001,Auth,Login valid,Active account and correct password,Session cookie set and redirect or success,See automated pytest run,Automated; see run report,Reports/summary/pytest-junit.xml
+BB-002,Auth,Invalid password,Known email and wrong password,No session is issued,See automated pytest run,Automated; see run report,Reports/summary/pytest-junit.xml
+BB-003,Auth,Unauthorized private page,No session cookie,401 or safe login redirect,"See automated pytest run; handler/service coverage; browser pending",Automated; see run report,Reports/summary/pytest-junit.xml
+BB-004,Settings,Maximum material chars lower boundary,10000,Accepted and persisted,See automated pytest run,Automated; see run report,Reports/summary/pytest-junit.xml
+BB-005,Settings,Maximum material chars upper boundary,1000000000,Accepted and persisted,See automated pytest run,Automated; see run report,Reports/summary/pytest-junit.xml
+BB-006,Settings,Reject invalid material limit,0; negative; >1e9; decimal; text; blank,Validation error and prior input retained,See automated pytest run,Automated unit/handler tests; browser pending,Reports/summary/pytest-junit.xml
+BB-007,Upload,Valid DOCX,Generated small DOCX,Text extracted,See automated pytest run,Automated; see run report,Reports/summary/pytest-junit.xml
+BB-008,Upload,Valid PDF,Text PDF fixture,Text extracted where supported by parser,See automated pytest run,Automated parser fixture; production PDF pending,Reports/summary/pytest-junit.xml
+BB-009,Upload,Unsupported/empty/corrupt/oversized files,See parameterized parser test inputs,Safe validation failure,See automated pytest run,Automated; see run report,Reports/summary/pytest-junit.xml
+BB-010,References,Public URL and redirects,HTTPX mock transport,Only validated public target followed,See automated pytest run,Automated reference tests; live URL pending,Reports/summary/pytest-junit.xml
+BB-011,References,Malformed/local/private/loop/large/timeout URL,HTTPX mock + validation cases,Rejected or safe failure,See automated pytest run,Automated reference tests; live DNS pending,Reports/summary/pytest-junit.xml
+BB-012,Generation,Valid AI result,Mocked provider response,Generation saved with matching questions and blueprint,See automated pytest run,Automated; real Gemini pending,Reports/summary/pytest-junit.xml
+BB-013,Generation,Invalid AI response repaired,Malformed mocked response then valid response,Bounded repair and consistent persistence,See automated pytest run,Automated; real Gemini pending,Reports/summary/pytest-junit.xml
+BB-014,Generation,Provider timeout/quota/auth error,Mocked HTTP provider responses,Safe failure status; no secret leak,See automated pytest run,Automated provider tests; live provider pending,Reports/summary/pytest-junit.xml
+BB-015,Generation,Persistence failure,Injected DB/service failure,Failure logged; no successful result asserted,See automated pytest run,Partial automated; DB integration failure injection pending,Reports/summary/pytest-junit.xml
+BB-016,Progress,Owner reads own generation,SQLite test generation,Stored progress returned without rerun,See automated pytest run,Direct handler test; ASGI/browser pending,Reports/summary/pytest-junit.xml
+BB-017,Progress,Other user reads generation,Foreign owner id,Access denied,See automated pytest run,Direct service/auth coverage; ASGI pending,Reports/summary/pytest-junit.xml
+BB-018,Recovery,Retry after failed generation,Existing failed generation record,Retry route validates and preserves history,Not fully end-to-end tested,Not Tested,Manual/API integration required
+BB-019,UI,Create/progress/detail/history screenshots,Authenticated demo account,Readable real screenshots without secrets,Not captured in this environment,Not Tested,"Requires running app + approved demo account; docs/revision/screenshots/"
+BB-020,AI quality,Human factual/educational rubric review,Real generated output + source material,Independent human scores with evidence,No ground truth collected,Not Tested,Complete output_accuracy.csv manually
+BB-021,Performance,Local PDF extraction benchmark,Synthetic deterministic PDF fixture,Raw timing samples and environment metadata,Produced by runner when executed,Automated local benchmark,Reports/performance/local_pdf_benchmark.csv
+BB-022,Performance,Live Gemini generation latency,Real model/account and representative materials,Repeated measurements with consent and budget,Not run,Not Tested,"Requires explicit API/service environment; live benchmark not provided"
+BB-023,Deployment,Server startup/restart and recovery,Verified target server,Health check and log evidence,No server connection available,Not Tested,"Requires server operator and target details; manual server evidence"

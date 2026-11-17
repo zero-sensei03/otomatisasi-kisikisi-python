@@ -4,9 +4,21 @@ import enum
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.database import Base
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
@@ -32,6 +44,7 @@ class GenerationQuestionType(str, enum.Enum):
 class Generation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "generations"
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    parent_generation_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("generations.id", ondelete="SET NULL"), index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     subject: Mapped[str] = mapped_column(String(150), nullable=False)
@@ -48,15 +61,18 @@ class Generation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     total_short_answer: Mapped[int] = mapped_column(Integer, nullable=False)
     total_essay: Mapped[int] = mapped_column(Integer, nullable=False)
     total_questions: Mapped[int] = mapped_column(Integer, nullable=False)
+    cognitive_levels: Mapped[str] = mapped_column(Text, nullable=False, default='["C1","C2","C3","C4","C5","C6"]')
+    progress_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     ai_provider: Mapped[str | None] = mapped_column(String(50))
     ai_model: Mapped[str | None] = mapped_column(String(150))
     generation_cost: Mapped[float] = mapped_column(Numeric(12, 4), default=0, nullable=False)
+    ai_duration_ms: Mapped[int | None] = mapped_column(Integer)
     started_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[object | None] = mapped_column(DateTime(timezone=True))
     questions: Mapped[list[GenerationQuestion]] = relationship(back_populates="generation", cascade="all, delete-orphan", order_by="GenerationQuestion.number")
     references: Mapped[list[GenerationReference]] = relationship(back_populates="generation", cascade="all, delete-orphan")
     blueprints: Mapped[list[GenerationBlueprint]] = relationship(back_populates="generation", cascade="all, delete-orphan")
-    owner: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    owner: Mapped[User] = relationship("User", foreign_keys=[user_id])
 
 class GenerationReference(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "generation_references"
@@ -75,6 +91,7 @@ class GenerationQuestion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     generation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("generations.id", ondelete="CASCADE"), nullable=False, index=True)
     number: Mapped[int] = mapped_column(Integer, nullable=False)
     type: Mapped[GenerationQuestionType] = mapped_column(Enum(GenerationQuestionType, name="generation_question_type"), nullable=False)
+    cognitive_level: Mapped[str] = mapped_column(String(2), nullable=False, default="C1")
     question: Mapped[str] = mapped_column(Text, nullable=False)
     answer: Mapped[str] = mapped_column(Text, nullable=False)
     explanation: Mapped[str] = mapped_column(Text, nullable=False)

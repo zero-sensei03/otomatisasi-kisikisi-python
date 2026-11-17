@@ -1,0 +1,3 @@
+# Screenshot aplikasi
+
+Screenshot aktual belum diambil: lingkungan task tidak menyediakan browser session terautentikasi atau akun demo yang disetujui. Tidak ada mock screenshot. Untuk mengumpulkan bukti, jalankan aplikasi lokal/staging dengan fixture/demo non-PII, gunakan viewport konsisten (mis. 1440×1000, device scale factor 2), login secara manual, lalu ambil halaman dashboard, Settings, create/upload, progress, detail kisi-kisi/soal dan history. Pastikan rahasia/identitas disamarkan. Simpan PNG asli di folder ini dengan caption halaman, viewport, tanggal, dan build/commit. Jangan mengirim screenshot production yang berisi data user.

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import enum
-import uuid
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Enum, String

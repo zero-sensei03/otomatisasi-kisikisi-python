@@ -1,0 +1,17 @@
+flowchart LR
+  U[Browser / Guru atau Admin] -->|HTML forms, cookies, CSRF| F[FastAPI + Jinja2]
+  F --> R[Routers: auth, generation, admin, audit, pages]
+  R --> S[Services: Auth, Generation, User Management, Audit]
+  R -->|UploadFile| X[Private file storage]
+  S --> P[PDF/DOCX extractors]
+  S --> W[GenerationRunner: in-process ThreadPoolExecutor]
+  W --> S
+  S -->|HTTPX REST, HTTPS| G[Google Gemini Interactions API]
+  S -->|HTTPX, validated redirect targets| Q[User-provided HTTP(S) references]
+  S --> D[Repositories / SQLAlchemy]
+  D --> DB[(PostgreSQL)]
+  M[Alembic migrations] --> DB
+  DB -->|detail/history/progress| R
+  R -->|Jinja pages, DOCX export| U
+  F --> L[stdout + private daily logs]
+  S --> L

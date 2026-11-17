@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from io import BytesIO
 from types import SimpleNamespace as Namespace
 from uuid import uuid4
 from zipfile import ZipFile
-import xml.etree.ElementTree as ET
 
 import pytest
 from fastapi import HTTPException
 from starlette.requests import Request
 
+from app.integrations.ai.schemas import AIGenerationResponse
+from app.integrations.ai.exceptions import AIConfigurationError, AIProviderHTTPError, AIProviderError, AIResponseError
 from app.integrations.exports.docx import TEMPLATES, build_generation_docx
 from app.integrations.references.content_service import ReferenceContentService
 from app.models.generation import (
@@ -23,7 +25,8 @@ from app.models.generation import (
 from app.models.user import UserRole
 from app.routers import generation as generation_router
 from app.schemas.auth import PasswordChangeSchema, UserUpdateSchema
-from app.services.generation_service import GenerationService
+from app.services.generation_service import GenerationService, generation_error_title, generation_user_error, truncate_material
+from app.services.generation_runner import GenerationRunner
 
 
 class FakeDB:
@@ -102,6 +105,152 @@ def test_blueprint_question_number_comes_from_question_relationship():
     assert generation.blueprints[0].question_number == 3
 
 
+def test_ai_response_rejects_mismatched_question_and_blueprint_levels():
+    payload = {
+        "summary": "Ringkasan berdasarkan sumber.",
+        "questions": [{"number": 1, "type": "ESSAY", "cognitive_level": "C1", "question": "Sebutkan konsep.", "answer": "Konsep sumber.", "explanation": "Tercantum dalam sumber."}],
+        "blueprint": [{"number": 1, "question_number": 1, "material_topic": "Konsep", "learning_objective": "Mengingat konsep", "indicator": "Menyebutkan konsep", "question_type": "ESSAY", "cognitive_level": "C4", "difficulty": "EASY"}],
+    }
+    with pytest.raises(ValueError, match="Level kognitif"):
+        AIGenerationResponse.model_validate(payload)
+
+
+def test_generation_schema_rejects_empty_cognitive_selection():
+    from pydantic import ValidationError
+
+    from app.schemas.generation import GenerationCreateSchema
+
+    with pytest.raises(ValidationError):
+        GenerationCreateSchema(title="T", subject="S", class_name="1", type_materi="TEXT", materi_text="materi", cognitive_levels=[], total_essay=1)
+
+
+def test_generation_schema_rejects_c5_and_c6_while_preserving_active_multiselect():
+    from pydantic import ValidationError
+
+    from app.schemas.generation import GenerationCreateSchema
+
+    base = dict(title="T", subject="S", class_name="1", type_materi="TEXT", materi_text="materi", total_essay=1)
+    valid = GenerationCreateSchema(**base, cognitive_levels=["C1", "C4"])
+    assert valid.cognitive_levels == ["C1", "C4"]
+    for inactive in ("C5", "C6"):
+        with pytest.raises(ValidationError, match="belum tersedia"):
+            GenerationCreateSchema(**base, cognitive_levels=[inactive])
+
+
+def test_progress_failure_marks_stage_and_total_duration():
+    import json
+
+    from app.services.generation_service import GenerationService
+
+    progress = {
+        "started_at": "2026-01-01T00:00:00+00:00",
+        "stages": [{"id": "file_extraction", "status": "PROCESSING"}],
+    }
+    failed = json.loads(GenerationService.failed_progress(
+        json.dumps(progress), stage="file_extraction", message="File tidak valid", duration_ms=250,
+    ))
+    assert failed["status"] == "FAILED"
+    assert failed["stages"][0]["status"] == "FAILED"
+    assert failed["stages"][0]["duration_ms"] == 250
+    assert failed["total_duration_ms"] >= 0
+
+
+def test_background_upload_retains_mime_type_and_rewinds_pointer():
+    upload = GenerationRunner._create_upload(b"%PDF-1.7", "materi.pdf", "application/pdf")
+    assert upload is not None
+    assert upload.filename == "materi.pdf"
+    assert upload.content_type == "application/pdf"
+    assert upload.file.read() == b"%PDF-1.7"
+
+
+def test_progress_status_reads_generation_without_submitting_another_job(monkeypatch):
+    import json
+
+    generation = generation_fixture()
+    generation.progress_json = json.dumps({"status": "COMPLETED", "total_duration_ms": 1200, "stages": []})
+    generation.started_at = None
+    monkeypatch.setattr(GenerationService, "detail", lambda _self, _generation_id, _user: generation)
+    monkeypatch.setattr(generation_router.generation_runner, "submit", lambda *_args, **_kwargs: pytest.fail("status polling must not submit generation"))
+
+    status = generation_router.generation_progress_status(generation.id, FakeDB(), Namespace(id=generation.user_id))
+
+    assert status["status"] == "COMPLETED"
+    assert status["total_duration_ms"] == 1200
+    assert status["result_url"] == f"/generation/{generation.id}"
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (AIConfigurationError("secret-api-key"), "Autentikasi layanan AI gagal."),
+        (AIProviderHTTPError(400, "private provider detail", retryable=False, provider_error_code="API_KEY_INVALID"), "Autentikasi layanan AI gagal."),
+        (AIProviderHTTPError(429, "private provider detail", retryable=True, provider_error_status="RESOURCE_EXHAUSTED"), "Kuota"),
+        (AIProviderHTTPError(504, "provider detail", retryable=True), "batas waktu"),
+        (AIProviderError("transport details",), "terhubung ke layanan AI"),
+        (AIResponseError("raw response containing private data"), "format yang diharapkan"),
+    ],
+)
+def test_generation_errors_are_mapped_to_safe_actionable_messages(error, expected):
+    message = generation_user_error(error)
+    assert expected.lower() in message.lower()
+    assert "secret-api-key" not in message
+    assert "private provider detail" not in message
+    assert "raw response" not in message
+
+
+def test_generation_error_mapper_identifies_material_and_database_failures():
+    from sqlalchemy.exc import OperationalError
+
+    assert "file sumber materi" in generation_user_error(ValueError("broken extraction"), stage="material_file_extraction").lower()
+    assert "menyimpan hasil" in generation_user_error(OperationalError("statement", {}, RuntimeError("db secret"))).lower()
+    assert generation_error_title("Kuota atau batas penggunaan layanan AI telah tercapai.") == "Kuota layanan AI tercapai"
+
+
+def test_progress_status_only_returns_errors_for_failed_generation(monkeypatch):
+    import json
+
+    generation = generation_fixture()
+    generation.error_message = "Autentikasi layanan AI gagal. Periksa konfigurasi API key atau hubungi administrator."
+    generation.progress_json = json.dumps({"stages": []})
+    generation.started_at = None
+    monkeypatch.setattr(GenerationService, "detail", lambda _self, _generation_id, _user: generation)
+    user = Namespace(id=generation.user_id)
+
+    success = generation_router.generation_progress_status(generation.id, FakeDB(), user)
+    assert success["error"] is None
+    assert success["error_title"] is None
+
+    generation.status = GenerationStatus.FAILED
+    failed = generation_router.generation_progress_status(generation.id, FakeDB(), user)
+    assert failed["error_title"] == "Autentikasi layanan AI gagal"
+    assert "API key" in failed["error"]
+
+
+def test_generation_progress_template_hides_warning_and_renders_error_conditionally():
+    from pathlib import Path
+
+    template = Path("app/templates/pages/generation/progress.html").read_text()
+    assert "progress-note" not in template
+    assert "nodes.error.hidden=!failed" in template
+    assert "nodes.errorMessage.textContent=payload.error" in template
+    assert "nodes.retry.hidden=!failed" in template
+
+
+def test_settings_template_always_restores_submit_state_after_request():
+    from pathlib import Path
+
+    template = Path("app/templates/pages/admin/settings/index.html").read_text()
+    assert "finally{if(timeout)clearTimeout(timeout);isSubmitting=false;submit.disabled=false" in template
+    assert "response.status===422" in template
+    assert "fieldNames.has(name)&&showFieldError(name,message)" in template
+    assert "controller.abort()" in template
+
+
+def test_oversized_material_is_rejected_instead_of_silently_truncated():
+    with pytest.raises(ValueError, match="melebihi batas"):
+        truncate_material("Materi panjang", 5)
+
+
 def test_edit_blueprints_updates_all_rows_and_commits():
     generation = generation_fixture()
     service = object.__new__(GenerationService)
@@ -170,22 +319,133 @@ def test_edit_question_updates_answer_and_option_correctness():
     assert [item.label for item in question.options if item.is_correct] == ["C"]
 
 
-def test_retry_reuses_failed_generation_id(monkeypatch):
+def test_retry_creates_separate_generation_and_preserves_failed_source():
     generation = generation_fixture()
     generation.status = GenerationStatus.FAILED
+    generation.cognitive_levels = '["C1","C4"]'
     service = object.__new__(GenerationService)
     service.detail = lambda _generation_id, _user: generation
+    service.validate_start = lambda _data, _user: None
+    service.repository = Namespace(add=lambda item: setattr(service, "added", item))
+    service.audit = Namespace(log=lambda **_kwargs: None)
+    service.db = FakeDB()
+
+    result, data = service.prepare_retry(generation.id, Namespace(id=generation.user_id))
+
+    assert result.id != generation.id
+    assert result.parent_generation_id == generation.id
+    assert result.status == GenerationStatus.PENDING
+    assert data.cognitive_levels == ["C1", "C4"]
+    assert generation.questions  # Failed generation's previous output is untouched.
+    assert service.db.committed
+
+
+def test_settings_validation_returns_field_errors_without_redirect_or_database_write():
+    request = Namespace(headers={"accept": "application/json"})
+    db = FakeDB()
+
+    response = generation_router.update_generation_settings(
+        request,
+        generation_free_limit="0",
+        generation_cost_per_generate="2",
+        generation_enabled="true",
+        generation_max_questions_per_generate="10",
+        generation_max_material_characters="1000",
+        generation_max_reference_characters="500",
+        db=db,
+        user=Namespace(id=uuid4()),
+    )
+
+    import json
+
+    payload = json.loads(response.body)
+    assert response.status_code == 422
+    assert "generation_free_limit" in payload["errors"]
+    assert not db.committed
+
+
+def test_valid_settings_ajax_request_returns_json_success_without_redirect():
+    import json
+
+    class SettingsDB:
+        def __init__(self):
+            self.rows = [Namespace(value="", is_active=False) for _ in range(6)]
+            self.index = 0
+            self.committed = False
+
+        def scalar(self, _statement):
+            row = self.rows[self.index]
+            self.index += 1
+            return row
+
+        def commit(self):
+            self.committed = True
+
+    db = SettingsDB()
+    response = generation_router.update_generation_settings(
+        Namespace(headers={"accept": "application/json"}),
+        generation_free_limit="25",
+        generation_cost_per_generate="1.25",
+        generation_enabled="true",
+        generation_max_questions_per_generate="20",
+        generation_max_material_characters="30000",
+        generation_max_reference_characters="5000",
+        db=db,
+        user=Namespace(id=uuid4()),
+    )
+    payload = json.loads(response.body)
+    assert response.status_code == 200
+    assert payload["settings"]["generation.free_limit"] == "25"
+    assert db.committed
+    assert all(row.is_active for row in db.rows)
+
+
+def test_settings_database_error_returns_http_500_and_rolls_back():
+    from sqlalchemy.exc import SQLAlchemyError
+
+    class BrokenDB(FakeDB):
+        def scalar(self, _statement):
+            return Namespace(value="1", is_active=True)
+
+        def commit(self):
+            raise SQLAlchemyError("database unavailable")
+
+    db = BrokenDB()
+    response = generation_router.update_generation_settings(
+        Namespace(headers={"accept": "application/json"}),
+        generation_free_limit="25",
+        generation_cost_per_generate="1.25",
+        generation_enabled="true",
+        generation_max_questions_per_generate="20",
+        generation_max_material_characters="30000",
+        generation_max_reference_characters="5000",
+        db=db,
+        user=Namespace(id=uuid4()),
+    )
+    assert response.status_code == 500
+    assert not db.committed
+
+
+def test_retry_route_redirects_to_same_progress_page_and_submits_worker(monkeypatch):
+    generation = generation_fixture()
     captured = {}
+    data = Namespace(materi_text=generation.material_text)
+    monkeypatch.setattr(GenerationService, "prepare_retry", lambda _self, *_args, **_kwargs: (generation, data))
+    monkeypatch.setattr(generation_router.generation_runner, "submit", lambda *args, **kwargs: captured.update(args=args, kwargs=kwargs))
+    request = Namespace(client=Namespace(host="127.0.0.1"), headers={})
 
-    def fake_create(_self, data, user, **kwargs):
-        captured.update(kwargs)
-        captured["data"] = data
-        return kwargs["existing_generation"]
+    response = generation_router.retry_generation(request, generation.id, FakeDB(), Namespace(id=generation.user_id))
 
-    monkeypatch.setattr(GenerationService, "create", fake_create)
-    result = service.retry(generation.id, Namespace(id=generation.user_id))
-    assert result.id == generation.id
-    assert captured["existing_generation"] is generation
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/generation/{generation.id}/progress"
+    assert captured["args"][:2] == (generation.id, generation.user_id)
+
+
+def test_ai_duration_formatting_uses_milliseconds_seconds_and_minutes():
+    assert generation_router.format_ai_duration(845) == "845 ms"
+    assert generation_router.format_ai_duration(12_450) == "12,45 detik"
+    assert generation_router.format_ai_duration(64_250) == "1 menit 04,25 detik"
+    assert generation_router.format_ai_duration(None) == "Belum tersedia"
 
 
 def test_non_owner_cannot_delete_generation():
@@ -429,19 +689,20 @@ def test_profile_password_change_uses_existing_auth_service(monkeypatch):
 
 def test_reference_rejects_private_network_before_http_request(monkeypatch):
     import socket
+
     from app.integrations.references import content_service
 
     monkeypatch.setattr(content_service.socket, "getaddrinfo", lambda *_args, **_kwargs: [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))])
-    text, title, error = ReferenceContentService().fetch("http://localhost/resource", 1000)
+    text, title, error = ReferenceContentService().fetch("http://127.0.0.1/resource", 1000)
     assert text is None
     assert title is None
-    assert error == "Referensi gagal diambil."
+    assert "publik" in error
 
 
 def test_reference_rejects_credentials_and_nonstandard_ports():
     service = ReferenceContentService()
-    assert service.fetch("http://user:pass@example.com/", 100)[2] == "Referensi gagal diambil."
-    assert service.fetch("http://example.com:8080/", 100)[2] == "Referensi gagal diambil."
+    assert "credential" in service.fetch("http://user:pass@example.com/", 100)[2]
+    assert "Port" in service.fetch("http://example.com:8080/", 100)[2]
 
 
 def test_docx_extractor_rejects_oversized_uncompressed_xml(monkeypatch):
@@ -453,6 +714,19 @@ def test_docx_extractor_rejects_oversized_uncompressed_xml(monkeypatch):
     monkeypatch.setattr(docx_extractor, "MAX_DOCUMENT_XML_BYTES", 64)
     with pytest.raises(ValueError, match="terlalu besar"):
         docx_extractor.extract_docx(payload.getvalue())
+
+
+def test_material_extractor_reads_docx_and_rejects_empty_content():
+    from app.integrations.material.extractor import MaterialExtractor
+
+    payload = BytesIO()
+    with ZipFile(payload, "w") as archive:
+        archive.writestr("word/document.xml", '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Materi uji</w:t></w:r></w:p></w:body></w:document>')
+    extractor = MaterialExtractor()
+    result = extractor.extract("materi.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", payload.getvalue(), 1024)
+    assert result.text == "Materi uji"
+    with pytest.raises(ValueError, match="kosong"):
+        extractor.extract("materi.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"", 1024)
 
 
 def test_docx_extractor_rejects_xml_entity_declarations():
@@ -467,6 +741,7 @@ def test_docx_extractor_rejects_xml_entity_declarations():
 
 def test_pdf_extractor_caps_decompressed_streams():
     import zlib
+
     from app.integrations.material.pdf_extractor import extract_pdf
 
     payload = b"%PDF-1.7\nstream\n" + zlib.compress(b"x" * (25 * 1024 * 1024)) + b"\nendstream"

@@ -9,7 +9,6 @@ from fastapi import (
 )
 from fastapi.responses import (
     HTMLResponse,
-    JSONResponse,
     RedirectResponse,
 )
 from fastapi.templating import Jinja2Templates

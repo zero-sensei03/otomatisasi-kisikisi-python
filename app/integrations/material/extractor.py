@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import PurePath
+import re
 
 from app.integrations.material.docx_extractor import extract_docx
 from app.integrations.material.pdf_extractor import extract_pdf
@@ -14,6 +15,13 @@ class ExtractedMaterial:
 
 class MaterialExtractor:
     MIME_TYPES = {".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", ".pdf": "application/pdf"}
+
+    @staticmethod
+    def page_count(data: bytes, filename: str) -> int | None:
+        if PurePath(filename).suffix.lower() != ".pdf":
+            return None
+        pages = re.findall(rb"/Type\s*/Page\b", data)
+        return len(pages) or None
 
     def extract(self, filename: str, mime_type: str, data: bytes, max_size: int) -> ExtractedMaterial:
         extension = PurePath(filename).suffix.lower()

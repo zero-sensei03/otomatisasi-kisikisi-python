@@ -6,8 +6,9 @@ import logging
 import httpx
 import pytest
 
-from app.integrations.ai.exceptions import AIConfigurationError, AIProviderHTTPError
+from app.integrations.ai.exceptions import AIConfigurationError, AIProviderError, AIProviderHTTPError, AIResponseError
 from app.integrations.ai.gemini_provider import GEMINI_ENDPOINT, GeminiProvider
+from app.integrations.ai.prompts.generation_prompt import build_generation_prompt
 from app.integrations.ai.schemas import AIGenerationRequest, QuestionDistribution
 from app.main import CredentialRedactingFormatter
 
@@ -32,6 +33,7 @@ def test_gemini_interactions_request_and_response(monkeypatch, request_data):
             {
                 "number": 1,
                 "type": "MULTIPLE_CHOICE",
+                "cognitive_level": "C1",
                 "question": "Berapakah 2 + 2?",
                 "options": [
                     {"label": "A", "text": "3", "is_correct": False},
@@ -77,9 +79,17 @@ def test_gemini_interactions_request_and_response(monkeypatch, request_data):
     assert captured["payload"]["model"] == "gemini-3.1-flash-lite"
     assert captured["payload"]["response_format"] == {"type": "text", "mime_type": "application/json"}
     assert captured["payload"]["store"] is False
+    assert '"C1", "C2", "C3", "C4"' in captured["payload"]["input"]
+    assert "satu-satunya sumber fakta" in captured["payload"]["input"]
     assert captured["timeout"] == 90
     assert result.questions[0].answer == "B"
     assert result.blueprint[0].question_number == 1
+
+
+def test_prompt_limits_levels_to_the_selected_subset(request_data):
+    selected = request_data.model_copy(update={"cognitive_levels": ["C1", "C4"]})
+    prompt = build_generation_prompt(selected)
+    assert 'Cognitive levels yang diizinkan hanya: ["C1", "C4"]' in prompt
 
 
 def test_gemini_http_error_preserves_provider_body_and_redacts_key(monkeypatch, request_data):
@@ -147,3 +157,38 @@ def test_application_formatter_redacts_credentials_from_traceback():
     assert "AIza123456789012345678901234567890" not in rendered
     assert "api_key=AIza" not in rendered
     assert "[REDACTED]" in rendered
+
+
+def test_gemini_transport_timeout_is_wrapped_as_provider_error(monkeypatch, request_data):
+    monkeypatch.setenv("GEMINI_API_KEY", "unit-test-secret")
+    monkeypatch.setenv("AI_MODEL", "gemini-test")
+
+    def timeout(_url, **_kwargs):
+        raise httpx.ReadTimeout("request timed out")
+
+    monkeypatch.setattr("app.integrations.ai.gemini_provider.httpx.post", timeout)
+    with pytest.raises(AIProviderError) as error:
+        GeminiProvider().generate(request_data)
+    assert isinstance(error.value.__cause__, httpx.ReadTimeout)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "not-json",
+        {"status": "failed", "steps": []},
+        {"status": "completed", "steps": []},
+        {"status": "completed", "steps": [{"type": "model_output", "content": [{"type": "text", "text": "{}"}]}]},
+    ],
+)
+def test_gemini_rejects_malformed_or_incomplete_responses(monkeypatch, request_data, body):
+    monkeypatch.setenv("GEMINI_API_KEY", "unit-test-secret")
+    monkeypatch.setenv("AI_MODEL", "gemini-test")
+
+    def fake_post(url, **_kwargs):
+        response = httpx.Response(200, text=body if isinstance(body, str) else json_module.dumps(body), request=httpx.Request("POST", url))
+        return response
+
+    monkeypatch.setattr("app.integrations.ai.gemini_provider.httpx.post", fake_post)
+    with pytest.raises(AIResponseError):
+        GeminiProvider().generate(request_data)

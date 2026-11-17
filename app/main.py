@@ -1,6 +1,9 @@
 import logging
 import os
 import re
+import sys
+import asyncio
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -15,6 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.core.config import get_settings
 from app.core.exceptions import AppException
 from app.routers import admin_users, audit_logs, auth, generation, health, pages
+from app.services.generation_runner import generation_runner
 
 settings = get_settings()
 templates = Jinja2Templates(directory="app/templates")
@@ -95,6 +99,12 @@ def configure_application_logging() -> None:
         handler.close()
     root_logger.setLevel(logging.INFO)
     root_logger.addHandler(file_handler)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(
+        CredentialRedactingFormatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+    )
+    console_handler._kisikisi_console_handler = True
+    root_logger.addHandler(console_handler)
 
     # Uvicorn installs its own console handlers before importing this module.
     # Clear them so application, access, and server logs all go through the file.
@@ -110,10 +120,19 @@ def configure_application_logging() -> None:
 configure_application_logging()
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    try:
+        yield
+    finally:
+        await asyncio.to_thread(generation_runner.shutdown)
+
 app = FastAPI(
     title=settings.app_name,
     # Use the application's safe error page instead of exposing tracebacks.
     debug=False,
+    lifespan=lifespan,
 )
 
 app.state.settings = settings

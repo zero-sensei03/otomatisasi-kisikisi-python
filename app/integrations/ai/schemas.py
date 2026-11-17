@@ -2,6 +2,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.cognitive_levels import ACTIVE_COGNITIVE_LEVELS
+
+
 class QuestionDistribution(BaseModel):
     multiple_choice: int = Field(ge=0)
     short_answer: int = Field(ge=0)
@@ -19,7 +22,16 @@ class AIGenerationRequest(BaseModel):
     class_name: str
     material: str
     references: list[str] = Field(default_factory=list)
+    cognitive_levels: list[str] = Field(default_factory=lambda: list(ACTIVE_COGNITIVE_LEVELS), min_length=1)
     question_distribution: QuestionDistribution
+
+    @field_validator("cognitive_levels")
+    @classmethod
+    def validate_cognitive_levels(cls, values):
+        invalid = sorted(set(values) - set(ACTIVE_COGNITIVE_LEVELS))
+        if invalid:
+            raise ValueError(f"Level kognitif {', '.join(invalid)} belum tersedia. Pilih C1 sampai C4.")
+        return list(dict.fromkeys(values))
 
 class QuestionOption(BaseModel):
     label: Literal["A", "B", "C", "D"]
@@ -29,10 +41,18 @@ class QuestionOption(BaseModel):
 class GeneratedQuestion(BaseModel):
     number: int = Field(ge=1)
     type: Literal["MULTIPLE_CHOICE", "SHORT_ANSWER", "ESSAY"]
+    cognitive_level: str
     question: str = Field(min_length=1)
     options: list[QuestionOption] = Field(default_factory=list)
     answer: str = Field(min_length=1)
     explanation: str = Field(min_length=1)
+
+    @field_validator("cognitive_level")
+    @classmethod
+    def validate_cognitive_level(cls, value):
+        if value not in ACTIVE_COGNITIVE_LEVELS:
+            raise ValueError("Level kognitif tidak tersedia. Gunakan C1 sampai C4.")
+        return value
 
     @field_validator("type", mode="before")
     @classmethod
@@ -50,8 +70,15 @@ class GeneratedBlueprint(BaseModel):
     learning_objective: str = Field(min_length=1)
     indicator: str = Field(min_length=1)
     question_type: Literal["MULTIPLE_CHOICE", "SHORT_ANSWER", "ESSAY"]
-    cognitive_level: Literal["C1", "C2", "C3", "C4", "C5", "C6"]
+    cognitive_level: str
     difficulty: Literal["EASY", "MEDIUM", "HARD"]
+
+    @field_validator("cognitive_level")
+    @classmethod
+    def validate_cognitive_level(cls, value):
+        if value not in ACTIVE_COGNITIVE_LEVELS:
+            raise ValueError("Level kognitif tidak tersedia. Gunakan C1 sampai C4.")
+        return value
 
     @field_validator("question_type", mode="before")
     @classmethod
@@ -72,12 +99,18 @@ class AIGenerationResponse(BaseModel):
         numbers = {q.number for q in self.questions}
         if len(numbers) != len(self.questions) or len(self.blueprint) != len(self.questions):
             raise ValueError("Nomor soal dan kisi-kisi harus unik serta berpasangan.")
+        if numbers != set(range(1, len(self.questions) + 1)):
+            raise ValueError("Nomor soal harus berurutan mulai dari 1.")
         if {b.question_number for b in self.blueprint} != numbers:
             raise ValueError("Setiap soal harus memiliki kisi-kisi.")
+        if {b.number for b in self.blueprint} != set(range(1, len(self.blueprint) + 1)):
+            raise ValueError("Nomor butir kisi-kisi harus unik dan berurutan.")
         for question in self.questions:
             blueprint = next(b for b in self.blueprint if b.question_number == question.number)
             if blueprint.question_type != question.type:
                 raise ValueError("Jenis kisi-kisi tidak sesuai soal.")
+            if blueprint.cognitive_level != question.cognitive_level:
+                raise ValueError("Level kognitif soal dan kisi-kisi tidak sesuai.")
             if question.type == "MULTIPLE_CHOICE":
                 if [o.label for o in question.options] != ["A", "B", "C", "D"]:
                     raise ValueError("Pilihan ganda harus memiliki opsi A-D.")

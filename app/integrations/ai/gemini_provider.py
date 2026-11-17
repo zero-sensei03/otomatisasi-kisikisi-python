@@ -155,8 +155,7 @@ class GeminiProvider:
             logger.error(
                 "generation id=%s stage=ai_request event=provider_http_error attempt=%s provider=gemini model=%s "
                 "endpoint=%s attempt_duration_ms=%s status_code=%s provider_error_code=%s "
-                "provider_error_status=%s provider_error_message=%s provider_error_details=%s "
-                "response_body=%s response_metadata=%s",
+                "provider_error_status=%s provider_error_message=%s provider_error_details=%s response_metadata=%s",
                 correlation_id,
                 attempt,
                 self.model,
@@ -167,7 +166,6 @@ class GeminiProvider:
                 provider_error.get("status"),
                 self._one_line(str(message)),
                 self._one_line(error_details),
-                json.dumps(safe_raw_body, ensure_ascii=False),
                 json.dumps(metadata, ensure_ascii=False, separators=(",", ":")),
             )
             raise AIProviderHTTPError(
@@ -206,9 +204,15 @@ class GeminiProvider:
             duration_ms,
         )
         if status != "completed":
-            safe_error = self._redact_secrets(json.dumps(payload.get("errors") or payload.get("error") or {}, ensure_ascii=False, default=str))[:3000]
-            logger.error("generation id=%s stage=response_parsing event=interaction_not_completed status=%s errors=%s", correlation_id, status, safe_error)
-            raise AIResponseError(f"Gemini interaction status={status}: {safe_error[:500]}")
+            provider_error = self._extract_provider_error(payload.get("errors") or payload.get("error") or {})
+            logger.error(
+                "generation id=%s stage=response_parsing event=interaction_not_completed status=%s error_type=%s error_code=%s",
+                correlation_id,
+                status,
+                provider_error.get("type") or provider_error.get("@type") or "unknown",
+                provider_error.get("code", "unknown"),
+            )
+            raise AIResponseError(f"Gemini interaction tidak selesai (status={status}, error_code={provider_error.get('code', 'unknown')}).")
 
         text_parts = [
             content["text"]

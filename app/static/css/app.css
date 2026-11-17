@@ -1771,6 +1771,12 @@ img {
 .blueprint-editor-disclosure > summary::-webkit-details-marker { display: none; }
 .blueprint-editor-disclosure[open] > summary { margin-bottom: 2px; }
 .blueprint-editor-disclosure .inline-editor { margin-top: 8px; }
+.cognitive-level-grid { margin-top: 12px; }
+.cognitive-level-option { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: #fff; cursor: pointer; }
+.cognitive-level-option input, .checkbox-row input { margin-top: 3px; accent-color: var(--color-primary); }
+.cognitive-level-option span { display: grid; gap: 5px; }
+.cognitive-level-option small { color: var(--color-text-muted); line-height: 1.45; }
+.checkbox-row { display: inline-flex; align-items: flex-start; gap: 8px; font-weight: 600; cursor: pointer; }
 .reference-link { color: var(--color-primary-hover); text-decoration: underline; }
 
 @media (max-width: 760px) {
@@ -1964,3 +1970,38 @@ img {
         width: 100%;
     }
 }
+
+/* Generation cognitive level tiles and live progress */
+.cognitive-level-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 12px; }
+.cognitive-level-option { display: flex; align-items: flex-start; gap: 11px; min-height: 94px; padding: 14px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface, #fff); cursor: pointer; transition: border-color .15s ease, background .15s ease, box-shadow .15s ease; }
+.cognitive-level-option:has(input:checked) { border-color: var(--color-primary); background: var(--color-primary-soft); box-shadow: 0 0 0 1px var(--color-primary); }
+.cognitive-level-option:focus-within { outline: 3px solid color-mix(in srgb, var(--color-primary) 30%, transparent); outline-offset: 2px; }
+.cognitive-level-option input { margin-top: 3px; accent-color: var(--color-primary); }
+.cognitive-level-option span { display: grid; gap: 5px; }
+.cognitive-level-option strong { color: var(--color-text); font-size: 13px; }
+.cognitive-level-option small { color: var(--color-text-muted); font-size: 12px; line-height: 1.45; }
+.cognitive-level-option.is-disabled { cursor: not-allowed; opacity: .62; background: var(--color-background, #f8fafc); }
+.cognitive-level-option .cognitive-level-badge { color: var(--color-text-muted); font-weight: 700; }
+.generation-progress-card { max-width: 850px; }
+.settings-field .field-error { display: block; color: var(--color-danger, #b42318); margin-top: 5px; }
+.settings-field .field-error[hidden] { display: none; }
+.settings-field [aria-invalid="true"] { border-color: var(--color-danger, #b42318); }
+.ai-duration-card .card-body { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.ai-duration-card .card-body > div { display: grid; gap: 5px; }
+.ai-duration-card small { color: var(--color-text-muted); }
+.ai-duration-card strong { color: var(--color-text); font-size: 18px; font-variant-numeric: tabular-nums; }
+.ai-duration-card p { margin: 0; }
+.generation-progress-clock { color: var(--color-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.generation-progress-stages { display: grid; gap: 0; padding: 0; margin: 0; list-style: none; }
+.generation-progress-stage { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px; min-height: 48px; border-bottom: 1px solid var(--color-border); }
+.generation-progress-stage:last-child { border-bottom: 0; }
+.generation-progress-mark { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; color: var(--color-text-muted); background: var(--color-background, #f8fafc); font-weight: 700; }
+.generation-progress-label { color: var(--color-text); font-size: 14px; }
+.generation-progress-time { color: var(--color-text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.generation-progress-stage.is-success .generation-progress-mark { color: #fff; background: #159447; }
+.generation-progress-stage.is-processing .generation-progress-mark { color: #fff; background: var(--color-primary); animation: generation-pulse 1.4s ease-in-out infinite; }
+.generation-progress-stage.is-failed .generation-progress-mark { color: #fff; background: #c93636; }
+.generation-progress-stage.is-skipped .generation-progress-label,.generation-progress-stage.is-skipped .generation-progress-time { color: var(--color-text-muted); }
+@keyframes generation-pulse { 50% { opacity: .55; } }
+@media (max-width: 600px) { .generation-progress-card .card-header { align-items: flex-start; flex-direction: column; gap: 8px; } .cognitive-level-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 380px) { .cognitive-level-grid { grid-template-columns: 1fr; } }

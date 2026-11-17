@@ -392,6 +392,8 @@ Uji login, pembuatan generation, unduhan DOCX, file materi, dan endpoint `/healt
 
 ## Operasional VPS
 
+> **Catatan deployment:** repository ini tidak berisi konfigurasi server aktif, Dockerfile/Compose, nama host, atau bukti systemd unit yang terpasang. Langkah berikut adalah prosedur contoh Ubuntu + PostgreSQL lokal + systemd + Nginx yang harus dicocokkan dengan server sebenarnya. Jangan menjalankan placeholder apa adanya.
+
 ### Periksa dan restart service
 
 ```bash
@@ -411,6 +413,8 @@ Log yang pernah memuat request/response AI sudah dihapus; prompt, isi materi, ha
 
 ### Perbarui aplikasi
 
+Sebelum update, pastikan target Git/release yang akan deploy, ambil backup PostgreSQL dan storage privat, serta siapkan cara rollback. Contoh di bawah mengasumsikan deployment systemd yang dijelaskan di atas.
+
 ```bash
 cd /srv/kisikisi/app
 sudo -u kisikisi git pull
@@ -422,7 +426,7 @@ sudo systemctl start kisikisi
 sudo systemctl status kisikisi --no-pager
 ```
 
-Lakukan backup database dan storage privat sebelum perubahan release besar. Gunakan migration yang sudah tercatat di repository; jangan menghapus migration yang sudah pernah dijalankan.
+Gunakan migration yang sudah tercatat di repository; jangan menghapus migration yang sudah pernah dijalankan. Jika restart/health check gagal, hentikan proses update lanjutan, baca `journalctl`, kembalikan source ke commit yang dicatat sebelum deploy, sinkronkan dependency sesuai lockfile commit tersebut, lalu restart. Restore database hanya jika perubahan schema/data menuntutnya dan berdasarkan backup teruji; jangan menjalankan downgrade/restore otomatis tanpa menilai dampak migration.
 
 ### Backup database
 
@@ -443,6 +447,30 @@ Simpan backup di lokasi terpisah dari VPS dan atur masa retensi. Storage upload 
 - **Upload gagal**: cek `MAX_UPLOAD_SIZE`, `client_max_body_size` Nginx, serta permission `STORAGE_PATH` dan `generation_private`.
 - **Service tidak mulai**: cek status systemd, lokasi virtual environment, `WorkingDirectory`, file environment, dan koneksi database.
 - **Akun admin awal**: periksa `ADMIN_EMAIL` dan environment yang dipakai saat menjalankan `scripts/seed_admin.py`.
+
+### Generation progress dan diagnosis
+
+Generation berjalan sebagai pekerjaan terkelola di dalam proses aplikasi. Halaman `/generation/{id}/progress` membaca status tersimpan dari endpoint `/generation/{id}/progress/status` setiap 1,2 detik. Refresh atau putusnya koneksi browser tidak mengirim ulang generation; status hanya dapat dibuka oleh pemilik generation (atau admin sesuai hak akses aplikasi). Saat aplikasi dimatikan dengan graceful shutdown, worker menunggu pekerjaan yang sedang berjalan.
+
+Log setiap hari ditulis ke `logs/YYYY-MM-DD.log` dan juga ke stdout/stderr aplikasi. Di VPS, pantau dengan `sudo journalctl -u kisikisi -f`; untuk development gunakan terminal tempat Uvicorn berjalan. Cari correlation ID `[GEN:<uuid>]` untuk menggabungkan tahapan validasi materi, ekstraksi file, pengambilan referensi, persiapan prompt, request Gemini, validasi output, penyimpanan, dan status akhir. Log tidak menyertakan isi materi atau credential. Error rinci/stack trace hanya ada di log server; UI menampilkan pesan aman untuk pengguna.
+
+Di tahap ekstraksi file, log mencatat nama file, MIME, byte, panjang teks, estimasi token, dan perkiraan jumlah halaman PDF (jika ditemukan di struktur PDF). Pemeriksaan alur worker menemukan bahwa objek `UploadFile` yang dibangun ulang dari byte upload tidak membawa header MIME. Extractor mensyaratkan MIME PDF/DOCX atau `application/octet-stream`, sehingga materi file gagal pada validasi MIME walaupun upload HTTP berhasil. Worker sekarang memulihkan MIME saat membangun `UploadFile`; tes regresi memastikan MIME dan isi file tetap tersedia. Jika tahap `material_file_extraction` masih gagal, periksa format/MIME dan validitas file; jika `ai_request` atau `gemini` gagal, periksa status/kode error provider serta timeout; jika `result_persistence` gagal, periksa log SQLAlchemy dan koneksi PostgreSQL. Ukuran file dibatasi `MAX_UPLOAD_SIZE` (default 10 MiB) dan materi teks hasil ekstraksi dibatasi pengaturan `generation.max_material_characters` agar prompt tidak diam-diam dipotong.
+
+Level C1–C4 tersedia untuk generation baru. C5–C6 tetap dapat ditampilkan dari generation historis, tetapi request generation baru yang mengirim level tersebut ditolak backend.
+
+## Pengujian dan laporan coverage
+
+Untuk development lokal, unit test menggunakan SQLite sementara melalui `tests/conftest.py`; tidak menggunakan database development atau Gemini sungguhan:
+
+```bash
+uv sync --group dev
+uv run pytest tests/unit -v
+uv run pytest tests/integration -v
+uv run pytest tests/ -v
+uv run pytest tests/ --cov=app --cov-report=term-missing --cov-report=html
+```
+
+Coverage HTML default ada di `htmlcov/index.html`; buka dengan browser lokal dan gunakan Print / Save as PDF pada browser bila diperlukan. Coverage mengukur eksekusi kode, bukan ketepatan pedagogis/faktual output AI. Paket dokumentasi dan script revision sekarang dilacak Git; hanya `docs/revision/reports/`, screenshot aktual, dan evidence manual yang dikecualikan. Jadi sesudah `git pull`, langsung jalankan `bash docs/revision/run_revision.sh`. Runner memakai virtualenv project bila test dependencies tersedia; jika tidak, ia menyiapkan `.venv-revision/` terpisah dengan `uv sync --frozen --group dev` dan tidak mengubah virtualenv production. Test menggunakan SQLite in-memory, tidak menjalankan migration, dan tidak memanggil Gemini. Hasil ada di `docs/revision/reports/`; dashboard `coverage_summary.html` menyediakan Print / Save as PDF dan ZIP. Untuk membawa hasil ke komputer lokal, gunakan `rsync -av USER@SERVER:/ABSOLUTE/PATH/PROJECT/docs/revision/reports/ docs/revision/reports/`. Benchmark hanya microbenchmark parser PDF lokal, bukan performa production. Detail metode dan batas bukti di README paket revision.
 
 ## Keamanan konfigurasi
 

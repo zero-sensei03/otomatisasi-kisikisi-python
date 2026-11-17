@@ -29,5 +29,20 @@ dev = [
     "ruff>=0.16.9",
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+relative_files = true
+
+[tool.coverage.report]
+show_missing = true
+precision = 1
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:"]
+
 [tool.uv]
 package = false

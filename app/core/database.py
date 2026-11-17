@@ -15,6 +15,7 @@ engine = create_engine(
     settings.database_url,
     pool_pre_ping=True,
     future=True,
+    hide_parameters=True,
 )
 
 SessionLocal = sessionmaker(

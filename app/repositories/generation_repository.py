@@ -1,6 +1,6 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
-from app.models.generation import Generation, GenerationQuestion, GenerationBlueprint, GenerationReference, GenerationSetting
+from app.models.generation import Generation, GenerationQuestion, GenerationSetting
 
 class GenerationRepository:
     def __init__(self, db: Session): self.db = db
