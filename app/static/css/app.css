@@ -1983,6 +1983,7 @@ img {
 .cognitive-level-option.is-disabled { cursor: not-allowed; opacity: .62; background: var(--color-background, #f8fafc); }
 .cognitive-level-option .cognitive-level-badge { color: var(--color-text-muted); font-weight: 700; }
 .generation-progress-card { max-width: 850px; }
+#progress-error[hidden], #progress-retry-form[hidden], #progress-result[hidden] { display: none !important; }
 .settings-field .field-error { display: block; color: var(--color-danger, #b42318); margin-top: 5px; }
 .settings-field .field-error[hidden] { display: none; }
 .settings-field [aria-invalid="true"] { border-color: var(--color-danger, #b42318); }

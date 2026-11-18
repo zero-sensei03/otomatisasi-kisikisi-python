@@ -113,8 +113,10 @@ def generation_user_error(exc: Exception, *, stage: str | None = None) -> str:
         return "File atau sumber materi tidak ditemukan. Periksa kembali materi yang digunakan."
     if isinstance(exc, ValueError) and "kuota" in str(exc).lower():
         return "Kuota generation Anda sudah habis. Hubungi administrator jika Anda memerlukan tambahan kuota."
-    if stage in {"material_file_validation", "material_file_extraction", "material_settings"}:
+    if stage in {"material_file_validation", "material_file_extraction"}:
         return "Sistem gagal membaca atau memproses file sumber materi. Pastikan file tidak kosong, tidak rusak, dan menggunakan format yang didukung."
+    if stage in {"material_settings", "material_validation"}:
+        return "Materi tidak memenuhi validasi yang diperlukan. Periksa isi dan batas ukuran materi, lalu coba kembali."
     return "Generation gagal pada tahap pemrosesan. Periksa materi lalu coba kembali. Jika masalah berulang, hubungi administrator dengan ID generation."
 
 
@@ -135,6 +137,38 @@ def generation_error_title(message: str | None) -> str:
     if "terhubung ke layanan ai" in text or "gangguan" in text:
         return "Layanan AI tidak tersedia"
     return "Generation gagal diproses"
+
+
+def generation_progress_error(message: str | None, *, stage: str | None = None) -> str:
+    """Return a safe, canonical error for a confirmed FAILED progress record.
+
+    Older rows may contain a raw exception string. Classify it without ever
+    returning that string to the browser.
+    """
+    text = (message or "").lower()
+    if any(term in text for term in ("autentikasi layanan ai", "invalid api key", "api_key_invalid", "api key not valid")):
+        return "Autentikasi layanan AI gagal. Periksa konfigurasi API key atau hubungi administrator."
+    if any(term in text for term in ("kuota", "quota", "resource_exhausted", "rate_limit")):
+        return "Kuota atau batas penggunaan layanan AI telah tercapai. Coba kembali nanti atau hubungi administrator."
+    if any(term in text for term in ("timeout", "timed out", "batas waktu")):
+        return "Layanan AI tidak memberikan respons dalam batas waktu yang ditentukan. Coba kembali."
+    if any(term in text for term in ("respons ai", "response validation", "format yang diharapkan", "output tidak valid")):
+        return "Respons AI tidak sesuai dengan format yang diharapkan. Coba kembali; jika berulang, hubungi administrator."
+    if any(term in text for term in ("database", "sqlalchemy", "sql error", "menyimpan hasil", "persistence")):
+        return "Terjadi kegagalan saat menyimpan hasil generation. Silakan coba kembali."
+    if any(term in text for term in ("file", "pdf", "docx", "extract", "ekstrak")):
+        return "Sistem gagal membaca atau memproses file sumber materi. Pastikan file tidak kosong, tidak rusak, dan menggunakan format yang didukung."
+    if any(term in text for term in ("materi", "karakter", "kosong", "validasi")):
+        return "Materi tidak memenuhi validasi yang diperlukan. Periksa isi dan batas ukuran materi, lalu coba kembali."
+
+    stage_messages = {
+        "gemini": "Tidak dapat terhubung ke layanan AI. Periksa koneksi lalu coba kembali.",
+        "output_validation": "Respons AI tidak sesuai dengan format yang diharapkan. Coba kembali; jika berulang, hubungi administrator.",
+        "file_extraction": "Sistem gagal membaca atau memproses file sumber materi. Pastikan file tidak kosong, tidak rusak, dan menggunakan format yang didukung.",
+        "material_validation": "Materi tidak memenuhi validasi yang diperlukan. Periksa isi dan batas ukuran materi, lalu coba kembali.",
+        "database_persistence": "Terjadi kegagalan saat menyimpan hasil generation. Silakan coba kembali.",
+    }
+    return stage_messages.get(stage or "", "Generation gagal pada tahap pemrosesan. Periksa materi lalu coba kembali. Jika masalah berulang, hubungi administrator dengan ID generation.")
 
 
 class GenerationService:

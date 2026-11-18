@@ -46,7 +46,7 @@ from app.models.user import User, UserRole
 from app.schemas.auth import PasswordChangeSchema, UserUpdateSchema
 from app.schemas.generation import GenerationCreateSchema, GenerationSettingsSchema
 from app.services.auth_service import AuthService
-from app.services.generation_service import GenerationService, generation_error_title, generation_user_error
+from app.services.generation_service import GenerationService, generation_error_title, generation_progress_error
 from app.services.generation_runner import generation_runner
 
 router = APIRouter(tags=["Generation"])
@@ -195,17 +195,29 @@ def generation_progress_status(generation_id: uuid.UUID, db: Session = Depends(g
         progress = json.loads(generation.progress_json or "{}")
     except json.JSONDecodeError:
         progress = {}
+    if not isinstance(progress, dict):
+        progress = {}
+    if not isinstance(progress.get("stages"), list):
+        progress["stages"] = []
+    status = generation.status
+    progress["status"] = status.value
+    # The generation status is authoritative. Old retry/progress payloads may
+    # retain an error field, so never expose it as current status data.
+    progress.pop("error", None)
+    for stage in progress.get("stages", []):
+        if isinstance(stage, dict):
+            stage.pop("message", None)
     elapsed_ms = progress.get("total_duration_ms") or 0
-    if generation.started_at and generation.status == GenerationStatus.PROCESSING:
+    if generation.started_at and status == GenerationStatus.PROCESSING:
         from datetime import UTC, datetime
         started_at = generation.started_at
         if started_at.tzinfo is None:
             started_at = started_at.replace(tzinfo=UTC)
         elapsed_ms = int((datetime.now(UTC) - started_at).total_seconds() * 1000)
     error = None
-    if generation.status == GenerationStatus.FAILED:
-        error = generation.error_message or generation_user_error(RuntimeError("Missing failure detail"))
-    return {"id": str(generation.id), "status": generation.status.value, "title": generation.title, "progress": progress, "total_duration_ms": elapsed_ms, "question_count": len(generation.questions), "error": error, "error_title": generation_error_title(error) if error else None, "result_url": f"/generation/{generation.id}" if generation.status == GenerationStatus.COMPLETED else None}
+    if status == GenerationStatus.FAILED:
+        error = generation_progress_error(generation.error_message, stage=progress.get("current_stage"))
+    return {"id": str(generation.id), "status": status.value, "title": generation.title, "progress": progress, "total_duration_ms": elapsed_ms, "question_count": len(generation.questions), "error": error, "error_title": generation_error_title(error) if error else None, "result_url": f"/generation/{generation.id}" if status == GenerationStatus.COMPLETED else None}
 
 
 @router.get("/generation/{generation_id}/edit", response_class=HTMLResponse)
