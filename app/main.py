@@ -202,6 +202,12 @@ app.mount(
     name="static",
 )
 
+app.mount(
+    "/coverage",
+    StaticFiles(directory="docs/revision/reports/coverage/htmlcov", html=True),
+    name="coverage",
+)
+
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(pages.router)
